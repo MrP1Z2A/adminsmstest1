@@ -199,13 +199,13 @@ const App: React.FC = () => {
     const filePath = `class-${Date.now()}-${sanitizedName}`;
 
     const { error } = await supabase.storage
-      .from('class-images')
+      .from('class_image')
       .upload(filePath, file, { upsert: true });
 
     if (error) throw error;
 
     const { data } = supabase.storage
-      .from('class-images')
+      .from('class_image')
       .getPublicUrl(filePath);
 
     if (!data?.publicUrl) {
