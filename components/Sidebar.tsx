@@ -1,0 +1,74 @@
+import React, { useState } from 'react';
+import { PageId } from '../types';
+
+interface SidebarProps {
+  currentPage: PageId;
+  setCurrentPage: (page: PageId) => void;
+  isMobileMenuOpen: boolean;
+  setIsMobileMenuOpen: (open: boolean) => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ 
+  currentPage, 
+  setCurrentPage, 
+  isMobileMenuOpen, 
+  setIsMobileMenuOpen 
+}) => {
+  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
+
+  const SidebarMenuItem = ({ id, icon, label, activePage, hasDropdown, children }: any) => {
+    const isOpen = openDropdowns[label];
+    const isParentActive = children && React.Children.toArray(children).some((child: any) => (child as any).props.id === activePage);
+    const isActive = id && activePage === id;
+    
+    return (
+      <div className="w-full">
+        <button
+          onClick={() => { 
+            if (hasDropdown) setOpenDropdowns(prev => ({ ...prev, [label]: !prev[label] }));
+            else if (id) { setCurrentPage(id); setIsMobileMenuOpen(false); }
+          }}
+          className={`w-full flex items-center justify-between px-8 py-3.5 transition-all duration-300 group
+            ${(isActive || (hasDropdown && isParentActive && !isOpen)) ? 'bg-brand-500/10 text-white border-r-4 border-brand-500' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+        >
+          <div className="flex items-center gap-4">
+            {icon && <i className={`fas ${icon} w-5 text-sm transition-colors ${isActive || isParentActive ? 'text-brand-400' : 'opacity-60 group-hover:opacity-100'}`}></i>}
+            <span className="text-[13px] font-bold tracking-tight">{label}</span>
+          </div>
+          {hasDropdown && <i className={`fas fa-chevron-down text-[10px] transition-transform duration-300 ${isOpen ? 'rotate-180 text-brand-400' : 'opacity-40 group-hover:opacity-100'}`}></i>}
+        </button>
+        {hasDropdown && isOpen && <div className="bg-black/10 py-1 animate-in slide-in-from-top-2 duration-300">{children}</div>}
+      </div>
+    );
+  };
+
+  const SidebarSubItem = ({ id, label, activePage }: any) => (
+    <button
+      onClick={() => { setCurrentPage(id); setIsMobileMenuOpen(false); }}
+      className={`w-full flex items-center gap-4 pl-16 pr-8 py-2.5 transition-all duration-300 group
+        ${activePage === id ? 'text-brand-400 font-bold' : 'text-slate-500 hover:text-slate-300 font-semibold'}`}
+    >
+      <div className={`w-1.5 h-1.5 rounded-full transition-all ${activePage === id ? 'bg-brand-500 scale-125' : 'bg-slate-700'}`}></div>
+      <span className="text-[12px]">{label}</span>
+    </button>
+  );
+
+  return (
+    <aside className={`w-64 fixed h-full bg-[#0f172a] text-white z-50 flex flex-col transition-transform lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
+      <div className="p-8 pb-10 flex items-center gap-3">
+        <div className="w-10 h-10 bg-brand-500 rounded-2xl flex items-center justify-center shadow-lg shadow-brand-500/30"><i className="fas fa-microchip text-white"></i></div>
+        <span className="text-xl font-black tracking-tighter">iAcademy</span>
+      </div>
+      <nav className="flex-1 overflow-y-auto no-scrollbar pb-10">
+        <SidebarMenuItem id="dashboard" icon="fa-house" label="Dashboard" activePage={currentPage} />
+        <SidebarMenuItem icon="fa-user-group" label="Students" activePage={currentPage} hasDropdown>
+           <SidebarSubItem id="students" label="Directory" activePage={currentPage} />
+           <SidebarSubItem id="student-attendance" label="Daily Attendance" activePage={currentPage} />
+           <SidebarSubItem id="student-register" label="Registration Hub" activePage={currentPage} />
+        </SidebarMenuItem>
+      </nav>
+    </aside>
+  );
+};
+
+export default Sidebar;

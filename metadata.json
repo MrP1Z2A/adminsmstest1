@@ -1,0 +1,9 @@
+
+{
+  "name": "iAcademy Intelligence",
+  "description": "High-performance institutional management with neural-assisted administrative control.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
