@@ -339,9 +339,9 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
                     <i className="fas fa-trash"></i>
                   </button>
                 </div>
-                <div className="h-24" style={{ backgroundColor: classItem.color || classItem.outer_color || '#f8fafc' }}>
+                <div className="w-full aspect-square" style={{ backgroundColor: classItem.color || classItem.outer_color || '#f8fafc' }}>
                   {classItem.image_url ? (
-                    <img src={classItem.image_url} alt={classItem.name} className="w-full h-full object-cover" />
+                    <img src={classItem.image_url} alt={classItem.name} className="w-full h-full object-contain" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-black uppercase tracking-widest">
                       No Image
