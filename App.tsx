@@ -20,8 +20,9 @@ import EnrollmentModal from './components/Modals/EnrollmentModal';
 import TeacherEnrollmentModal from './components/Modals/TeacherEnrollmentModal';
 import EditModal from './components/Modals/EditModal';
 import PermissionsModal from './components/Modals/PermissionsModal';
+import logoIem from './src/LOGO_IEM.png';
 
-const DEFAULT_AVATAR = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" fill="%23f8fafc"/><circle cx="12" cy="9" r="4" fill="%23e2e8f0"/><path d="M12 14c-4.4 0-8 2-8 6v1h16v-1c0-4-3.6-6-8-6z" fill="%23cbd5e1"/></svg>`;
+const DEFAULT_AVATAR = logoIem;
 
 const INITIAL_PERMISSIONS: StudentPermissions = {
   neuralSync: true,
@@ -43,8 +44,10 @@ const INITIAL_EXAMS: any[] = [];
 const INITIAL_HOMEWORK: any[] = [];
 
 const INITIAL_PROGRAMS: any[] = [];
+const INITIAL_PARENTS: any[] = [];
 
 type AttendanceContextType = 'class' | 'subject';
+const CLOUD_SYNC_INTERVAL_SECONDS = 60;
 
 const normalizeClassCodeBase = (name: string) => {
   const sanitized = name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -67,6 +70,18 @@ const isCourseAssignmentSchemaMissing = (message?: string | null) => {
   );
 };
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_PATTERN = /^\d{6,15}$/;
+
+const isValidEmail = (value: string) => EMAIL_PATTERN.test(value.trim());
+const normalizeDigits = (value: string) => value.replace(/\D/g, '');
+const isValidPhoneDigits = (value: string) => PHONE_PATTERN.test(normalizeDigits(value));
+const toInternationalPhone = (countryCode: string, phoneValue: string) => {
+  const normalizedCountryCode = String(countryCode || '').trim() || '+1';
+  const normalizedPhone = normalizeDigits(phoneValue);
+  return `${normalizedCountryCode}${normalizedPhone}`;
+};
+
 const getInitialEnrollData = (type: 'New' | 'Old' = 'New') => ({
   name: '',
   email: '',
@@ -78,9 +93,11 @@ const getInitialEnrollData = (type: 'New' | 'Old' = 'New') => ({
   selectedClassCourseId: '',
   dateOfBirth: '',
   parentName: '',
+  parentCountryCode: '+1',
   parentNumber: '',
   parentEmail: '',
   secondaryParentName: '',
+  secondaryParentCountryCode: '+1',
   secondaryParentNumber: '',
   secondaryParentEmail: '',
 });
@@ -97,6 +114,9 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'info'} | null>(null);
+  const [cloudSyncCountdown, setCloudSyncCountdown] = useState(CLOUD_SYNC_INTERVAL_SECONDS);
+  const [isCloudSyncRunning, setIsCloudSyncRunning] = useState(false);
+  const isCloudSyncRunningRef = useRef(false);
 
   // Stateful Data
   const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
@@ -107,6 +127,7 @@ const App: React.FC = () => {
   const [exams, setExams] = useState(INITIAL_EXAMS);
   const [homeworks, setHomeworks] = useState(INITIAL_HOMEWORK);
   const [programs, setPrograms] = useState(INITIAL_PROGRAMS);
+  const [parents, setParents] = useState(INITIAL_PARENTS);
   const [policies, setPolicies] = useState({
     mfaRequired: true,
     ipWhitelist: false,
@@ -165,11 +186,30 @@ const App: React.FC = () => {
   const [newStudentCredentials, setNewStudentCredentials] = useState<{ name: string; email: string; password: string } | null>(null);
 
   const stats = useMemo(() => {
-    const total = students.length;
-    const avgAttendance = students.reduce((acc, s) => acc + s.attendanceRate, 0) / (total || 1);
-    const atRisk = students.filter(s => s.attendanceRate < 90).length;
-    return { total, avgAttendance: avgAttendance.toFixed(1), atRisk, activeSubjects: subjects.length };
-  }, [students, subjects]);
+    const totalStudents = students.length;
+    const totalTeachers = teachers.length;
+    const totalParents = parents.length;
+    const demoEarning = 0;
+    const maleStudents = students.filter(student => student.gender === 'Male').length;
+    const femaleStudents = students.filter(student => student.gender === 'Female').length;
+    const maleTeachers = teachers.filter(teacher => teacher.gender === 'Male').length;
+    const femaleTeachers = teachers.filter(teacher => teacher.gender === 'Female').length;
+
+    return {
+      totalStudents,
+      totalParents,
+      demoEarning,
+      totalTeachers,
+      genderBreakdown: {
+        male: maleStudents,
+        female: femaleStudents,
+      },
+      teacherGenderBreakdown: {
+        male: maleTeachers,
+        female: femaleTeachers,
+      },
+    };
+  }, [students, teachers, parents]);
 
   const notify = useCallback((message: string) => {
     setNotification({ message, type: 'info' });
@@ -186,7 +226,7 @@ const App: React.FC = () => {
     role: (student?.role || 'student') as Student['role'],
     gender: (student?.gender || 'Male') as Student['gender'],
     status: (student?.status || Status.PENDING) as Status,
-    attendanceRate: typeof student?.attendanceRate === 'number' ? student.attendanceRate : 100,
+    attendanceRate: typeof student?.attendanceRate === 'number' ? student.attendanceRate : 0,
     courseAttendance: Array.isArray(student?.courseAttendance) ? student.courseAttendance : [],
     securityStatus: student?.securityStatus || { lastLogin: 'Never', twoFactorEnabled: false, trustedDevices: 0, riskLevel: 'Low' },
   });
@@ -232,6 +272,28 @@ const App: React.FC = () => {
 
     if (!error && data) {
       setTeachers(data.map((teacher: any) => mapStudentFromDB({ ...teacher, role: 'teacher' })));
+    }
+  };
+
+  const fetchParents = async () => {
+    const { data, error } = await supabase
+      .from('parents')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setParents(data);
+      return;
+    }
+
+    if (error && /created_at|column|schema cache|does not exist/i.test(error.message || '')) {
+      const fallbackResult = await supabase
+        .from('parents')
+        .select('*');
+
+      if (!fallbackResult.error && fallbackResult.data) {
+        setParents(fallbackResult.data);
+      }
     }
   };
 
@@ -845,6 +907,7 @@ const App: React.FC = () => {
     fetchStudents();
     fetchAllStudents();
     fetchTeachers();
+    fetchParents();
     fetchClasses();
   }, []);
 
@@ -966,7 +1029,7 @@ const App: React.FC = () => {
           gender,
           status: Status.PENDING,
           email,
-          attendanceRate: 100,
+          attendanceRate: 0,
           courseAttendance: [],
           securityStatus: { lastLogin: 'Never', twoFactorEnabled: false, trustedDevices: 0, riskLevel: 'Low' },
           permissions: { ...INITIAL_PERMISSIONS },
@@ -1114,7 +1177,7 @@ const App: React.FC = () => {
           gender,
           status: Status.PENDING,
           email,
-          attendanceRate: 100,
+          attendanceRate: 0,
           courseAttendance: [],
           securityStatus: { lastLogin: 'Never', twoFactorEnabled: false, trustedDevices: 0, riskLevel: 'Low' },
           permissions: { ...INITIAL_PERMISSIONS },
@@ -1122,7 +1185,13 @@ const App: React.FC = () => {
         };
 
         const payload = {
-          ...newTeacher,
+          id: newTeacher.id,
+          name: newTeacher.name,
+          role: 'teacher',
+          gender: newTeacher.gender,
+          status: newTeacher.status,
+          email: newTeacher.email,
+          type: newTeacher.type,
           temp_password: generatedPassword,
           temp_password_created_at: new Date().toISOString(),
         };
@@ -1212,7 +1281,7 @@ const App: React.FC = () => {
         ...data,
         role: data.role ?? existingStudent?.role ?? 'student',
         status: data.status ?? existingStudent?.status ?? Status.PENDING,
-        attendanceRate: data.attendanceRate ?? existingStudent?.attendanceRate ?? 100,
+        attendanceRate: data.attendanceRate ?? existingStudent?.attendanceRate ?? 0,
       };
 
       const { error } = await supabase.from('students').upsert(studentPayload);
@@ -1230,10 +1299,14 @@ const App: React.FC = () => {
     if (type === 'teacher') {
       const existingTeacher = teachers.find(teacher => teacher.id === data.id);
       const teacherPayload = {
-        ...data,
+        id: data.id,
+        name: data.name,
+        email: data.email,
         role: 'teacher',
+        gender: data.gender ?? existingTeacher?.gender ?? 'Male',
         status: data.status ?? existingTeacher?.status ?? Status.PENDING,
-        attendanceRate: data.attendanceRate ?? existingTeacher?.attendanceRate ?? 100,
+        type: data.type ?? existingTeacher?.type ?? 'New',
+        avatar: data.avatar ?? existingTeacher?.avatar ?? null,
       };
 
       const { error } = await supabase.from('teachers').upsert(teacherPayload);
@@ -1695,8 +1768,33 @@ const App: React.FC = () => {
         return;
       }
 
+      if (!isValidEmail(enrollData.email)) {
+        notify('Please enter a valid student email address.');
+        return;
+      }
+
       if (!enrollData.dateOfBirth || !enrollData.parentName || !enrollData.parentNumber || !enrollData.parentEmail) {
         notify('Please provide DOB and primary parent details.');
+        return;
+      }
+
+      if (!isValidPhoneDigits(enrollData.parentNumber)) {
+        notify('Please enter a valid primary parent phone number.');
+        return;
+      }
+
+      if (!isValidEmail(enrollData.parentEmail)) {
+        notify('Please enter a valid primary parent email address.');
+        return;
+      }
+
+      if (enrollData.secondaryParentNumber && !isValidPhoneDigits(enrollData.secondaryParentNumber)) {
+        notify('Please enter a valid secondary parent phone number.');
+        return;
+      }
+
+      if (enrollData.secondaryParentEmail && !isValidEmail(enrollData.secondaryParentEmail)) {
+        notify('Please enter a valid secondary parent email address.');
         return;
       }
 
@@ -1711,6 +1809,13 @@ const App: React.FC = () => {
       }
 
       const generatedPassword = generateStudentPassword();
+      const normalizedStudentEmail = enrollData.email.trim().toLowerCase();
+      const normalizedParentEmail = enrollData.parentEmail.trim().toLowerCase();
+      const normalizedSecondaryParentEmail = enrollData.secondaryParentEmail.trim().toLowerCase();
+      const primaryParentPhone = toInternationalPhone(enrollData.parentCountryCode, enrollData.parentNumber);
+      const secondaryParentPhone = enrollData.secondaryParentNumber
+        ? toInternationalPhone(enrollData.secondaryParentCountryCode, enrollData.secondaryParentNumber)
+        : null;
 
       let profileImageUrl: string | undefined;
       if (studentProfileImage) {
@@ -1729,7 +1834,7 @@ const App: React.FC = () => {
 
       let authUserId: string | null = null;
       try {
-        const authData = await authService.signUp(enrollData.email, generatedPassword, enrollData.name, 'student');
+        const authData = await authService.signUp(normalizedStudentEmail, generatedPassword, enrollData.name, 'student');
         authUserId = authData?.user?.id || null;
       } catch (authError: any) {
         console.error('Auth sign-up failed, continuing with student profile only:', authError);
@@ -1745,9 +1850,9 @@ const App: React.FC = () => {
         role: 'student',
         gender: 'Male',
         status: Status.PENDING,
-        email: enrollData.email,
+        email: normalizedStudentEmail,
         avatar: profileImageUrl,
-        attendanceRate: 100,
+        attendanceRate: 0,
         courseAttendance: [],
         securityStatus: { lastLogin: 'Never', twoFactorEnabled: false, trustedDevices: 0, riskLevel: 'Low' },
         permissions: { ...INITIAL_PERMISSIONS },
@@ -1760,11 +1865,11 @@ const App: React.FC = () => {
         temp_password: generatedPassword,
         date_of_birth: enrollData.dateOfBirth,
         parent_name: enrollData.parentName,
-        parent_number: enrollData.parentNumber,
-        parent_email: enrollData.parentEmail,
+        parent_number: primaryParentPhone,
+        parent_email: normalizedParentEmail,
         secondary_parent_name: enrollData.secondaryParentName || null,
-        secondary_parent_number: enrollData.secondaryParentNumber || null,
-        secondary_parent_email: enrollData.secondaryParentEmail || null,
+        secondary_parent_number: secondaryParentPhone,
+        secondary_parent_email: normalizedSecondaryParentEmail || null,
       };
 
       let createdStudentRecord: any = null;
@@ -1863,11 +1968,17 @@ const App: React.FC = () => {
         return;
       }
 
+      if (!isValidEmail(teacherEnrollData.email)) {
+        notify('Please enter a valid teacher email address.');
+        return;
+      }
+
       const generatedPassword = generateStudentPassword();
+      const normalizedTeacherEmail = teacherEnrollData.email.trim().toLowerCase();
 
       let authUserId: string | null = null;
       try {
-        const authData = await authService.signUp(teacherEnrollData.email, generatedPassword, teacherEnrollData.name, 'teacher');
+        const authData = await authService.signUp(normalizedTeacherEmail, generatedPassword, teacherEnrollData.name, 'teacher');
         authUserId = authData?.user?.id || null;
       } catch (authError: any) {
         console.error('Auth sign-up failed, continuing with teacher profile only:', authError);
@@ -1879,8 +1990,8 @@ const App: React.FC = () => {
         role: 'teacher',
         gender: 'Male',
         status: Status.PENDING,
-        email: teacherEnrollData.email,
-        attendanceRate: 100,
+        email: normalizedTeacherEmail,
+        attendanceRate: 0,
         courseAttendance: [],
         securityStatus: { lastLogin: 'Never', twoFactorEnabled: false, trustedDevices: 0, riskLevel: 'Low' },
         permissions: { ...INITIAL_PERMISSIONS },
@@ -1888,7 +1999,13 @@ const App: React.FC = () => {
       };
 
       const insertPayload = {
-        ...newTeacher,
+        id: newTeacher.id,
+        name: newTeacher.name,
+        email: newTeacher.email,
+        role: 'teacher',
+        gender: newTeacher.gender,
+        status: newTeacher.status,
+        type: newTeacher.type,
         auth_user_id: authUserId,
         temp_password: generatedPassword,
       };
@@ -2028,6 +2145,125 @@ const App: React.FC = () => {
     setAttendanceForDate(getAttendanceStoreKey(contextType, contextId), date, nextDateData);
   }, [getAttendanceStoreKey, notify, setAttendanceForDate]);
 
+  const syncStudentAttendanceRates = useCallback(async (
+    studentIds: string[],
+    options?: { showErrorToast?: boolean; errorPrefix?: string }
+  ) => {
+    const showErrorToast = options?.showErrorToast ?? true;
+    const errorPrefix = options?.errorPrefix || 'Failed to sync attendance rate';
+    const uniqueStudentIds = Array.from(new Set(studentIds.map(id => String(id)).filter(Boolean)));
+    if (!uniqueStudentIds.length) return;
+
+    const { data: attendanceRows, error: attendanceError } = await supabase
+      .from('attendance_records')
+      .select('student_id, status')
+      .in('student_id', uniqueStudentIds);
+
+    if (attendanceError) {
+      console.error('Failed to load attendance records for rate sync:', attendanceError);
+      if (showErrorToast) {
+        notify(`${errorPrefix}: ${attendanceError.message}`);
+      }
+      return;
+    }
+
+    const statsMap = new Map<string, { total: number; presentLike: number }>();
+    uniqueStudentIds.forEach(id => {
+      statsMap.set(id, { total: 0, presentLike: 0 });
+    });
+
+    (attendanceRows || []).forEach((row: any) => {
+      const id = String(row.student_id);
+      const existing = statsMap.get(id) || { total: 0, presentLike: 0 };
+      existing.total += 1;
+      if (row.status === 'P' || row.status === 'L') {
+        existing.presentLike += 1;
+      }
+      statsMap.set(id, existing);
+    });
+
+    const updates = uniqueStudentIds.map(id => {
+      const stats = statsMap.get(id) || { total: 0, presentLike: 0 };
+      const attendanceRate = stats.total > 0
+        ? Number(((stats.presentLike / stats.total) * 100).toFixed(2))
+        : 0;
+      return { id, attendanceRate };
+    });
+
+    for (const item of updates) {
+      const { error: updateError } = await supabase
+        .from('students')
+        .update({ attendanceRate: item.attendanceRate })
+        .eq('id', item.id);
+
+      if (updateError) {
+        console.error('Failed to persist attendance rate:', updateError);
+        if (showErrorToast) {
+          notify(`${errorPrefix}: ${updateError.message}`);
+        }
+        return;
+      }
+    }
+
+    const rateMap = new Map<string, number>();
+    updates.forEach(item => {
+      rateMap.set(String(item.id), item.attendanceRate);
+    });
+
+    setStudents(prev => prev.map(student => {
+      const key = String(student.id);
+      if (!rateMap.has(key)) return student;
+      return { ...student, attendanceRate: rateMap.get(key)! };
+    }));
+
+    setAttendanceStudents(prev => prev.map(student => {
+      const key = String(student.id);
+      if (!rateMap.has(key)) return student;
+      return { ...student, attendanceRate: rateMap.get(key)! };
+    }));
+
+    setAllStudents(prev => prev.map((student: any) => {
+      const key = String(student.id);
+      if (!rateMap.has(key)) return student;
+      return { ...student, attendanceRate: rateMap.get(key)! };
+    }));
+  }, [notify]);
+
+  const syncAllStudentsToCloud = useCallback(async (showErrorToast = false) => {
+    if (isCloudSyncRunningRef.current) return;
+
+    isCloudSyncRunningRef.current = true;
+    setIsCloudSyncRunning(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select('id')
+        .eq('role', 'student');
+
+      if (error) {
+        console.error('Failed to load students for cloud sync:', error);
+        if (showErrorToast) {
+          notify(`Cloud sync failed: ${error.message}`);
+        }
+        return;
+      }
+
+      if (!data?.length) return;
+
+      await syncStudentAttendanceRates(
+        data.map((row: any) => String(row.id)),
+        {
+          showErrorToast,
+          errorPrefix: 'Cloud sync failed',
+        }
+      );
+    } finally {
+      setIsCloudSyncRunning(false);
+      isCloudSyncRunningRef.current = false;
+    }
+  }, [notify, syncStudentAttendanceRates]);
+
   const updateSubjectAttendance = useCallback(async (
     contextType: AttendanceContextType,
     contextId: string,
@@ -2077,6 +2313,8 @@ const App: React.FC = () => {
       return;
     }
 
+    await syncStudentAttendanceRates([studentId]);
+
     const storeKey = getAttendanceStoreKey(contextType, contextId);
     setSubjectAttendanceStore(prev => {
       const contextData = prev[storeKey] || {};
@@ -2092,7 +2330,7 @@ const App: React.FC = () => {
         },
       };
     });
-  }, [getAttendanceStoreKey, notify]);
+  }, [getAttendanceStoreKey, notify, syncStudentAttendanceRates]);
 
   const bulkMarkSubjectPresent = useCallback(async (
     contextType: AttendanceContextType,
@@ -2147,6 +2385,8 @@ const App: React.FC = () => {
       return;
     }
 
+    await syncStudentAttendanceRates(studentIds);
+
     const nextDateData: Record<string, 'P'> = {};
     studentIds.forEach(studentId => {
       nextDateData[studentId] = 'P';
@@ -2154,10 +2394,42 @@ const App: React.FC = () => {
 
     setAttendanceForDate(getAttendanceStoreKey(contextType, contextId), date, nextDateData);
     notify(`All students marked Present for ${contextName || 'selected attendance context'}.`);
-  }, [getAttendanceStoreKey, notify, setAttendanceForDate]);
+  }, [getAttendanceStoreKey, notify, setAttendanceForDate, syncStudentAttendanceRates]);
+
+  useEffect(() => {
+    void syncAllStudentsToCloud(false);
+  }, [syncAllStudentsToCloud]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCloudSyncCountdown(prev => {
+        if (prev <= 1) {
+          void syncAllStudentsToCloud(false);
+          return CLOUD_SYNC_INTERVAL_SECONDS;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [syncAllStudentsToCloud]);
+
+  const cloudSyncTimeText = useMemo(() => {
+    const minutes = Math.floor(cloudSyncCountdown / 60);
+    const seconds = cloudSyncCountdown % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }, [cloudSyncCountdown]);
 
   return (
     <div className="flex min-h-screen bg-[#f8fafc] dark:bg-slate-950 transition-colors duration-500 relative">
+
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[110] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-premium rounded-2xl px-4 py-2">
+        <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+          {`Updating to cloud in ${isCloudSyncRunning ? '00:00' : cloudSyncTimeText}second`}
+        </p>
+      </div>
 
       {notification && (
         <div className="fixed top-4 right-4 z-[100] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-premium rounded-2xl px-4 py-3 min-w-[220px] max-w-[90vw]">
@@ -2734,6 +3006,7 @@ const App: React.FC = () => {
             <StudentDirectory
               title="Teacher Directory"
               selectLabel="Teacher Select"
+              namePrefix="(T) "
               students={teachers}
               classes={classes}
               selectedDate={selectedDate}

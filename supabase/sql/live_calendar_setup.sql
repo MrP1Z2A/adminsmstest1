@@ -1,4 +1,4 @@
--- Live Calendar / Timetable setup for iAcademy Intelligence
+-- Live Calendar / Timetable setup for IEM Intelligence
 -- Run this in Supabase SQL Editor.
 
 create extension if not exists pgcrypto;

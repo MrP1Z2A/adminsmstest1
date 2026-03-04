@@ -14,6 +14,7 @@ interface StudentDirectoryProps {
   classes: any[];
   title?: string;
   selectLabel?: string;
+  namePrefix?: string;
   selectedDate: string;
   setSelectedDate: (date: string) => void;
   bulkAssignStudentsToClass: (studentIds: string[], classId: string, classCourseId?: string) => Promise<void>;
@@ -31,6 +32,7 @@ const StudentDirectory: React.FC<StudentDirectoryProps> = ({
   classes,
   title = 'Student Directory',
   selectLabel = 'Student Select',
+  namePrefix = '',
   selectedDate,
   setSelectedDate,
   bulkAssignStudentsToClass,
@@ -524,7 +526,7 @@ const StudentDirectory: React.FC<StudentDirectoryProps> = ({
                         )}
                         <div className="min-w-0">
                           <p className="text-base font-black tracking-tight truncate">
-                            {s.name}
+                            {namePrefix}{s.name}
                             <span className="text-xs text-slate-400 font-bold ml-2">• {getStudentClassName(String(s.id))}</span>
                             <span className="text-xs text-slate-400 font-bold ml-2">• ID: {s.id}</span>
                           </p>
@@ -586,7 +588,7 @@ const StudentDirectory: React.FC<StudentDirectoryProps> = ({
                 </div>
               )}
               <div className="min-w-0">
-                <p className="text-lg font-black tracking-tight truncate">{selectedStudent.name}</p>
+                <p className="text-lg font-black tracking-tight truncate">{namePrefix}{selectedStudent.name}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{selectedStudent.email}</p>
                 <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">ID: {selectedStudent.id}</p>
                 <button

@@ -1,6 +1,146 @@
 import React from 'react';
 import { Student } from '../../types';
 
+const COUNTRY_CODES = [
+  '+1 (US/CA)',
+  '+7 (RU)',
+  '+20 (EG)',
+  '+27 (ZA)',
+  '+30 (GR)',
+  '+31 (NL)',
+  '+32 (BE)',
+  '+33 (FR)',
+  '+34 (ES)',
+  '+39 (IT)',
+  '+44 (UK)',
+  '+49 (DE)',
+  '+52 (MX)',
+  '+55 (BR)',
+  '+60 (MY)',
+  '+61 (AU)',
+  '+62 (ID)',
+  '+63 (PH)',
+  '+64 (NZ)',
+  '+65 (SG)',
+  '+66 (TH)',
+  '+81 (JP)',
+  '+82 (KR)',
+  '+84 (VN)',
+  '+86 (CN)',
+  '+91 (IN)',
+  '+92 (PK)',
+  '+93 (AF)',
+  '+94 (LK)',
+  '+95 (MM)',
+  '+98 (IR)',
+  '+211 (SS)',
+  '+212 (MA)',
+  '+213 (DZ)',
+  '+216 (TN)',
+  '+218 (LY)',
+  '+220 (GM)',
+  '+221 (SN)',
+  '+222 (MR)',
+  '+223 (ML)',
+  '+224 (GN)',
+  '+225 (CI)',
+  '+226 (BF)',
+  '+227 (NE)',
+  '+228 (TG)',
+  '+229 (BJ)',
+  '+230 (MU)',
+  '+231 (LR)',
+  '+232 (SL)',
+  '+233 (GH)',
+  '+234 (NG)',
+  '+235 (TD)',
+  '+236 (CF)',
+  '+237 (CM)',
+  '+238 (CV)',
+  '+239 (ST)',
+  '+240 (GQ)',
+  '+241 (GA)',
+  '+242 (CG)',
+  '+243 (CD)',
+  '+244 (AO)',
+  '+251 (ET)',
+  '+252 (SO)',
+  '+253 (DJ)',
+  '+254 (KE)',
+  '+255 (TZ)',
+  '+256 (UG)',
+  '+257 (BI)',
+  '+258 (MZ)',
+  '+260 (ZM)',
+  '+261 (MG)',
+  '+262 (RE)',
+  '+263 (ZW)',
+  '+264 (NA)',
+  '+265 (MW)',
+  '+266 (LS)',
+  '+267 (BW)',
+  '+268 (SZ)',
+  '+269 (KM)',
+  '+351 (PT)',
+  '+353 (IE)',
+  '+354 (IS)',
+  '+356 (MT)',
+  '+357 (CY)',
+  '+358 (FI)',
+  '+359 (BG)',
+  '+370 (LT)',
+  '+371 (LV)',
+  '+372 (EE)',
+  '+373 (MD)',
+  '+374 (AM)',
+  '+375 (BY)',
+  '+376 (AD)',
+  '+377 (MC)',
+  '+378 (SM)',
+  '+380 (UA)',
+  '+381 (RS)',
+  '+382 (ME)',
+  '+383 (XK)',
+  '+385 (HR)',
+  '+386 (SI)',
+  '+387 (BA)',
+  '+389 (MK)',
+  '+420 (CZ)',
+  '+421 (SK)',
+  '+423 (LI)',
+  '+852 (HK)',
+  '+853 (MO)',
+  '+855 (KH)',
+  '+856 (LA)',
+  '+880 (BD)',
+  '+886 (TW)',
+  '+960 (MV)',
+  '+961 (LB)',
+  '+962 (JO)',
+  '+963 (SY)',
+  '+964 (IQ)',
+  '+965 (KW)',
+  '+966 (SA)',
+  '+967 (YE)',
+  '+968 (OM)',
+  '+970 (PS)',
+  '+971 (AE)',
+  '+972 (IL)',
+  '+973 (BH)',
+  '+974 (QA)',
+  '+975 (BT)',
+  '+976 (MN)',
+  '+977 (NP)',
+  '+992 (TJ)',
+  '+993 (TM)',
+  '+994 (AZ)',
+  '+995 (GE)',
+  '+996 (KG)',
+  '+998 (UZ)',
+];
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /**
  * EnrollmentModal Component
  * 
@@ -21,9 +161,11 @@ interface EnrollmentModalProps {
     selectedClassCourseId: string;
     dateOfBirth: string;
     parentName: string;
+    parentCountryCode: string;
     parentNumber: string;
     parentEmail: string;
     secondaryParentName: string;
+    secondaryParentCountryCode: string;
     secondaryParentNumber: string;
     secondaryParentEmail: string;
   };
@@ -51,6 +193,10 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
   onSubmit
 }) => {
   if (!isOpen) return null;
+
+  const isStudentEmailValid = !enrollData.email || EMAIL_PATTERN.test(enrollData.email.trim());
+  const isParentEmailValid = !enrollData.parentEmail || EMAIL_PATTERN.test(enrollData.parentEmail.trim());
+  const isSecondaryParentEmailValid = !enrollData.secondaryParentEmail || EMAIL_PATTERN.test(enrollData.secondaryParentEmail.trim());
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-xl animate-in fade-in duration-300">
@@ -152,11 +298,12 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-3">Network Email (Verification Hub)</label>
                 <input 
                   type="email"
-                  placeholder="student@iacademy.io"
-                  className="w-full bg-slate-50 dark:bg-slate-800 p-6 rounded-3xl outline-none border-2 border-transparent focus:border-brand-500 font-bold transition-all"
+                  placeholder="student@iem.io"
+                  className={`w-full bg-slate-50 dark:bg-slate-800 p-6 rounded-3xl outline-none border-2 font-bold transition-all ${isStudentEmailValid ? 'border-transparent focus:border-brand-500' : 'border-rose-400 focus:border-rose-500'}`}
                   value={enrollData.email}
                   onChange={(e) => setEnrollData({ ...enrollData, email: e.target.value })}
                 />
+                {!isStudentEmailValid && <p className="mt-2 text-[11px] font-bold text-rose-500">Enter a valid email format (example@domain.com).</p>}
               </div>
 
               <div>
@@ -215,20 +362,33 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
                   value={enrollData.parentName}
                   onChange={(e) => setEnrollData({ ...enrollData, parentName: e.target.value })}
                 />
-                <input
-                  type="text"
-                  placeholder="Parent Number"
-                  className="w-full bg-white dark:bg-slate-900 p-4 rounded-2xl outline-none border border-transparent focus:border-brand-500 font-bold transition-all"
-                  value={enrollData.parentNumber}
-                  onChange={(e) => setEnrollData({ ...enrollData, parentNumber: e.target.value })}
-                />
+                <div className="flex gap-3">
+                  <select
+                    className="w-40 bg-white dark:bg-slate-900 p-4 rounded-2xl outline-none border border-transparent focus:border-brand-500 font-bold transition-all"
+                    value={enrollData.parentCountryCode}
+                    onChange={(e) => setEnrollData({ ...enrollData, parentCountryCode: e.target.value })}
+                  >
+                    {COUNTRY_CODES.map((code) => (
+                      <option key={code} value={code.split(' ')[0]}>{code}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="Parent Number"
+                    className="flex-1 bg-white dark:bg-slate-900 p-4 rounded-2xl outline-none border border-transparent focus:border-brand-500 font-bold transition-all"
+                    value={enrollData.parentNumber}
+                    onChange={(e) => setEnrollData({ ...enrollData, parentNumber: e.target.value.replace(/\D/g, '') })}
+                  />
+                </div>
                 <input
                   type="email"
                   placeholder="Parent Email"
-                  className="w-full bg-white dark:bg-slate-900 p-4 rounded-2xl outline-none border border-transparent focus:border-brand-500 font-bold transition-all"
+                  className={`w-full bg-white dark:bg-slate-900 p-4 rounded-2xl outline-none border font-bold transition-all ${isParentEmailValid ? 'border-transparent focus:border-brand-500' : 'border-rose-400 focus:border-rose-500'}`}
                   value={enrollData.parentEmail}
                   onChange={(e) => setEnrollData({ ...enrollData, parentEmail: e.target.value })}
                 />
+                {!isParentEmailValid && <p className="text-[11px] font-bold text-rose-500 -mt-2">Enter a valid parent email format.</p>}
               </div>
 
               <div className="space-y-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
@@ -240,20 +400,33 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
                   value={enrollData.secondaryParentName}
                   onChange={(e) => setEnrollData({ ...enrollData, secondaryParentName: e.target.value })}
                 />
-                <input
-                  type="text"
-                  placeholder="Second Parent Number"
-                  className="w-full bg-white dark:bg-slate-900 p-4 rounded-2xl outline-none border border-transparent focus:border-brand-500 font-bold transition-all"
-                  value={enrollData.secondaryParentNumber}
-                  onChange={(e) => setEnrollData({ ...enrollData, secondaryParentNumber: e.target.value })}
-                />
+                <div className="flex gap-3">
+                  <select
+                    className="w-40 bg-white dark:bg-slate-900 p-4 rounded-2xl outline-none border border-transparent focus:border-brand-500 font-bold transition-all"
+                    value={enrollData.secondaryParentCountryCode}
+                    onChange={(e) => setEnrollData({ ...enrollData, secondaryParentCountryCode: e.target.value })}
+                  >
+                    {COUNTRY_CODES.map((code) => (
+                      <option key={code} value={code.split(' ')[0]}>{code}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="Second Parent Number"
+                    className="flex-1 bg-white dark:bg-slate-900 p-4 rounded-2xl outline-none border border-transparent focus:border-brand-500 font-bold transition-all"
+                    value={enrollData.secondaryParentNumber}
+                    onChange={(e) => setEnrollData({ ...enrollData, secondaryParentNumber: e.target.value.replace(/\D/g, '') })}
+                  />
+                </div>
                 <input
                   type="email"
                   placeholder="Second Parent Email"
-                  className="w-full bg-white dark:bg-slate-900 p-4 rounded-2xl outline-none border border-transparent focus:border-brand-500 font-bold transition-all"
+                  className={`w-full bg-white dark:bg-slate-900 p-4 rounded-2xl outline-none border font-bold transition-all ${isSecondaryParentEmailValid ? 'border-transparent focus:border-brand-500' : 'border-rose-400 focus:border-rose-500'}`}
                   value={enrollData.secondaryParentEmail}
                   onChange={(e) => setEnrollData({ ...enrollData, secondaryParentEmail: e.target.value })}
                 />
+                {!isSecondaryParentEmailValid && <p className="text-[11px] font-bold text-rose-500 -mt-2">Enter a valid secondary parent email format.</p>}
               </div>
 
               <div>

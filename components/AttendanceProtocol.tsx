@@ -138,6 +138,14 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
     course_name: string | null;
     notes: string | null;
   }>>([]);
+  const [isCourseHomeworkLoading, setIsCourseHomeworkLoading] = React.useState(false);
+  const [courseHomeworkItems, setCourseHomeworkItems] = React.useState<Array<{
+    id: string;
+    title: string;
+    description: string;
+    attachment_url: string | null;
+    created_at: string | null;
+  }>>([]);
   const classImageInputRef = React.useRef<HTMLInputElement | null>(null);
   const timetableInputRef = React.useRef<HTMLInputElement | null>(null);
   const newCourseImageInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -155,6 +163,37 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
   const handleGlobalDateChange = React.useCallback((date: string) => {
     setAttendanceDate(date);
   }, [setAttendanceDate]);
+
+  const resolveHomeworkAttachmentUrl = React.useCallback((rawValue: unknown) => {
+    if (typeof rawValue !== 'string') return '';
+    const candidate = rawValue.trim();
+    if (!candidate) return '';
+    if (/^(https?:|data:|blob:)/i.test(candidate)) {
+      return candidate;
+    }
+
+    const cleanedPath = candidate.replace(/^\/+/, '');
+    const { data } = supabase.storage.from('homework_files').getPublicUrl(cleanedPath);
+    return data?.publicUrl || '';
+  }, []);
+
+  const getAttachmentValueFromRow = React.useCallback((row: any): string | null => {
+    const rawValue =
+      row?.attachment_url
+      ?? row?.attachmentUrl
+      ?? row?.file_url
+      ?? row?.fileUrl
+      ?? row?.document_url
+      ?? row?.documentUrl
+      ?? row?.attachment
+      ?? row?.file_path
+      ?? row?.filePath
+      ?? null;
+
+    if (!rawValue) return null;
+    const asString = String(rawValue);
+    return resolveHomeworkAttachmentUrl(asString) || asString;
+  }, [resolveHomeworkAttachmentUrl]);
 
   React.useEffect(() => {
     if (editingClassId) {
@@ -263,6 +302,80 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
 
     void loadCourseCalendarEvents();
   }, [courseAttendanceOnly, focusCourse?.id, focusCourse?.name, activeClassId, attendanceDate, notify, selectedClass?.name]);
+
+  React.useEffect(() => {
+    const loadCourseHomework = async () => {
+      if (!courseAttendanceOnly || !focusCourse?.id || !activeClassId) {
+        setCourseHomeworkItems([]);
+        setIsCourseHomeworkLoading(false);
+        return;
+      }
+
+      setIsCourseHomeworkLoading(true);
+      try {
+        let rows: any[] = [];
+        let fetchError: any = null;
+        let bucketFileUrls: string[] = [];
+
+        {
+          const result = await supabase
+            .from('homework_assignments')
+            .select('*')
+            .eq('class_id', activeClassId)
+            .eq('class_course_id', String(focusCourse.id))
+            .order('created_at', { ascending: false });
+
+          rows = result.data || [];
+          fetchError = result.error;
+        }
+
+        if (fetchError) throw fetchError;
+
+        {
+          const folder = `homework/${activeClassId}/${String(focusCourse.id)}`;
+          const listResult = await supabase.storage
+            .from('homework_files')
+            .list(folder, {
+              limit: 100,
+              sortBy: { column: 'created_at', order: 'desc' },
+            });
+
+          if (!listResult.error) {
+            bucketFileUrls = (listResult.data || [])
+              .filter((file: any) => file?.name)
+              .map((file: any) => {
+                const path = `${folder}/${file.name}`;
+                const { data } = supabase.storage.from('homework_files').getPublicUrl(path);
+                return data?.publicUrl || '';
+              })
+              .filter((url: string) => Boolean(url));
+          }
+        }
+
+        setCourseHomeworkItems(
+          rows.map((row: any, index: number) => {
+            const dbAttachment = getAttachmentValueFromRow(row);
+            const bucketAttachment = bucketFileUrls[index] || null;
+
+            return {
+              id: String(row.id),
+              title: String(row.title || ''),
+              description: String(row.description || ''),
+              attachment_url: dbAttachment || bucketAttachment,
+              created_at: row.created_at ? String(row.created_at) : null,
+            };
+          })
+        );
+      } catch (error) {
+        console.error('Failed to load course homework:', error);
+        setCourseHomeworkItems([]);
+      } finally {
+        setIsCourseHomeworkLoading(false);
+      }
+    };
+
+    void loadCourseHomework();
+  }, [courseAttendanceOnly, focusCourse?.id, activeClassId, getAttachmentValueFromRow]);
 
   React.useEffect(() => {
     if (activeAttendanceId) {
@@ -1263,60 +1376,109 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
               )}
 
               {courseAttendanceOnly && focusCourse && (
-                <div className="bg-white dark:bg-slate-900 rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 border border-slate-100 dark:border-slate-800 shadow-premium">
-                  <button
-                    onClick={() => setIsCourseCalendarOpen(prev => !prev)}
-                    title={isCourseCalendarOpen ? 'Click to collapse course timetable calendar' : 'Click to expand course timetable calendar'}
-                    className="inline-flex items-center gap-3 px-3 py-2 rounded-xl border border-brand-200 dark:border-brand-800 bg-white dark:bg-slate-900 text-xs sm:text-sm font-black uppercase tracking-[0.18em] text-slate-700 hover:text-brand-500 dark:text-slate-200 dark:hover:text-brand-300 cursor-pointer"
-                  >
-                    <span className={`w-8 h-8 rounded-full flex items-center justify-center border ${isCourseCalendarOpen ? 'bg-brand-500 border-brand-400 text-white shadow-lg shadow-brand-500/40' : 'bg-slate-200 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-200'}`}>
-                      <i className={`fas ${isCourseCalendarOpen ? 'fa-chevron-down' : 'fa-chevron-right'} text-sm`}></i>
-                    </span>
-                    <span className={`${isCourseCalendarOpen ? 'text-brand-500 dark:text-brand-400' : ''}`}>Course Timetable Calendar</span>
-                    <span className="text-[10px] sm:text-xs font-bold tracking-normal normal-case text-brand-600 dark:text-brand-300">
-                      {focusCourse.name}
-                    </span>
-                  </button>
+                <>
+                  <div className="bg-white dark:bg-slate-900 rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 border border-slate-100 dark:border-slate-800 shadow-premium">
+                    <button
+                      onClick={() => setIsCourseCalendarOpen(prev => !prev)}
+                      title={isCourseCalendarOpen ? 'Click to collapse course timetable calendar' : 'Click to expand course timetable calendar'}
+                      className="inline-flex items-center gap-3 px-3 py-2 rounded-xl border border-brand-200 dark:border-brand-800 bg-white dark:bg-slate-900 text-xs sm:text-sm font-black uppercase tracking-[0.18em] text-slate-700 hover:text-brand-500 dark:text-slate-200 dark:hover:text-brand-300 cursor-pointer"
+                    >
+                      <span className={`w-8 h-8 rounded-full flex items-center justify-center border ${isCourseCalendarOpen ? 'bg-brand-500 border-brand-400 text-white shadow-lg shadow-brand-500/40' : 'bg-slate-200 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-200'}`}>
+                        <i className={`fas ${isCourseCalendarOpen ? 'fa-chevron-down' : 'fa-chevron-right'} text-sm`}></i>
+                      </span>
+                      <span className={`${isCourseCalendarOpen ? 'text-brand-500 dark:text-brand-400' : ''}`}>Course Timetable Calendar</span>
+                      <span className="text-[10px] sm:text-xs font-bold tracking-normal normal-case text-brand-600 dark:text-brand-300">
+                        {focusCourse.name}
+                      </span>
+                    </button>
 
-                  {isCourseCalendarOpen && (
-                    <div className="mt-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 space-y-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Live Calendar Timetable</p>
-                        <span className="bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-500">
-                          {attendanceDate}
-                        </span>
-                      </div>
-
-                      {isCourseCalendarLoading && (
-                        <p className="text-xs font-semibold text-slate-500">Loading timetable entries...</p>
-                      )}
-
-                      {!isCourseCalendarLoading && courseCalendarEvents.length === 0 && (
-                        <p className="text-xs font-semibold text-slate-500">No timetable entries found for this course on this date.</p>
-                      )}
-
-                      {!isCourseCalendarLoading && courseCalendarEvents.length > 0 && (
-                        <div className="space-y-3">
-                          {courseCalendarEvents.map((event, index) => (
-                            <div
-                              key={event.id}
-                              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3"
-                            >
-                              <p className="text-xs font-black text-brand-500 uppercase tracking-widest">Period {index + 1}</p>
-                              <p className="text-sm font-black text-slate-700 dark:text-slate-200 mt-1">{event.title}</p>
-                              <p className="text-[11px] font-semibold text-slate-500 mt-1">
-                                {event.start_time} - {event.end_time}
-                              </p>
-                              {event.notes && (
-                                <p className="text-[11px] text-slate-500 mt-1">{event.notes}</p>
-                              )}
-                            </div>
-                          ))}
+                    {isCourseCalendarOpen && (
+                      <div className="mt-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Live Calendar Timetable</p>
+                          <span className="bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-500">
+                            {attendanceDate}
+                          </span>
                         </div>
-                      )}
+
+                        {isCourseCalendarLoading && (
+                          <p className="text-xs font-semibold text-slate-500">Loading timetable entries...</p>
+                        )}
+
+                        {!isCourseCalendarLoading && courseCalendarEvents.length === 0 && (
+                          <p className="text-xs font-semibold text-slate-500">No timetable entries found for this course on this date.</p>
+                        )}
+
+                        {!isCourseCalendarLoading && courseCalendarEvents.length > 0 && (
+                          <div className="space-y-3">
+                            {courseCalendarEvents.map((event, index) => (
+                              <div
+                                key={event.id}
+                                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3"
+                              >
+                                <p className="text-xs font-black text-brand-500 uppercase tracking-widest">Period {index + 1}</p>
+                                <p className="text-sm font-black text-slate-700 dark:text-slate-200 mt-1">{event.title}</p>
+                                <p className="text-[11px] font-semibold text-slate-500 mt-1">
+                                  {event.start_time} - {event.end_time}
+                                </p>
+                                {event.notes && (
+                                  <p className="text-[11px] text-slate-500 mt-1">{event.notes}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-white dark:bg-slate-900 rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 border border-slate-100 dark:border-slate-800 shadow-premium">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Created Homework</p>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-brand-500">{courseHomeworkItems.length} Items</span>
                     </div>
-                  )}
-                </div>
+
+                    {isCourseHomeworkLoading && (
+                      <p className="text-xs font-semibold text-slate-500">Loading created homework...</p>
+                    )}
+
+                    {!isCourseHomeworkLoading && courseHomeworkItems.length === 0 && (
+                      <p className="text-xs font-semibold text-slate-500">No homework created yet for this course.</p>
+                    )}
+
+                    {!isCourseHomeworkLoading && courseHomeworkItems.length > 0 && (
+                      <div className="space-y-3">
+                        {courseHomeworkItems.map(item => (
+                          <div
+                            key={item.id}
+                            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-sm font-black text-slate-700 dark:text-slate-200 truncate">{item.title}</p>
+                                <p className="text-[11px] font-semibold text-slate-500 mt-1 whitespace-pre-wrap">{item.description}</p>
+                              </div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+                                {item.created_at ? new Date(item.created_at).toLocaleDateString() : '—'}
+                              </span>
+                            </div>
+                            {item.attachment_url && (
+                              <a
+                                href={item.attachment_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-brand-500"
+                              >
+                                <i className="fas fa-paperclip"></i>
+                                Open Attachment
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </>
           )}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PageId } from '../types';
+import logoIem from '../src/LOGO_IEM.png';
 
 interface SidebarProps {
   currentPage: PageId;
@@ -56,8 +57,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className={`w-64 fixed h-full bg-[#0f172a] text-white z-50 flex flex-col transition-transform lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
       <div className="p-8 pb-10 flex items-center gap-3">
-        <div className="w-10 h-10 bg-brand-500 rounded-2xl flex items-center justify-center shadow-lg shadow-brand-500/30"><i className="fas fa-microchip text-white"></i></div>
-        <span className="text-xl font-black tracking-tighter">iAcademy</span>
+        <div className="w-10 h-10 bg-brand-500 rounded-2xl flex items-center justify-center shadow-lg shadow-brand-500/30 overflow-hidden">
+          <img src={logoIem} alt="IEM" className="w-full h-full object-cover" />
+        </div>
+        <span className="text-xl font-black tracking-tighter">IEM</span>
       </div>
       <nav className="flex-1 overflow-y-auto no-scrollbar pb-10">
         <SidebarMenuItem id="dashboard" icon="fa-house" label="Dashboard" activePage={currentPage} />
@@ -72,6 +75,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <SidebarSubItem id="teacher-register" label="Registration Hub" activePage={currentPage} />
         </SidebarMenuItem>
         <SidebarMenuItem id="homework" icon="fa-book-open" label="Homework" activePage={currentPage} />
+        <SidebarMenuItem id="security" icon="fa-user-shield" label="Security Permission" activePage={currentPage} />
       </nav>
     </aside>
   );

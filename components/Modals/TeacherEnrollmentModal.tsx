@@ -1,5 +1,7 @@
 import React from 'react';
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface TeacherEnrollmentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -19,6 +21,8 @@ const TeacherEnrollmentModal: React.FC<TeacherEnrollmentModalProps> = ({
   onSubmit,
 }) => {
   if (!isOpen) return null;
+
+  const isTeacherEmailValid = !enrollData.email || EMAIL_PATTERN.test(enrollData.email.trim());
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-xl animate-in fade-in duration-300">
@@ -53,11 +57,12 @@ const TeacherEnrollmentModal: React.FC<TeacherEnrollmentModalProps> = ({
             <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-3">Network Email</label>
             <input
               type="email"
-              placeholder="teacher@iacademy.io"
-              className="w-full bg-slate-50 dark:bg-slate-800 p-6 rounded-3xl outline-none border-2 border-transparent focus:border-brand-500 font-bold transition-all"
+              placeholder="teacher@iem.io"
+              className={`w-full bg-slate-50 dark:bg-slate-800 p-6 rounded-3xl outline-none border-2 font-bold transition-all ${isTeacherEmailValid ? 'border-transparent focus:border-brand-500' : 'border-rose-400 focus:border-rose-500'}`}
               value={enrollData.email}
               onChange={(e) => setEnrollData({ ...enrollData, email: e.target.value })}
             />
+            {!isTeacherEmailValid && <p className="mt-2 text-[11px] font-bold text-rose-500">Enter a valid email format (example@domain.com).</p>}
           </div>
 
           <div className="p-6 bg-brand-50 dark:bg-brand-500/10 rounded-3xl border border-brand-100 dark:border-brand-500/20">

@@ -59,6 +59,10 @@ export default function HomeworkManager() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [existingAttachmentUrl, setExistingAttachmentUrl] = useState<string | null>(null);
+  const [existingAttachmentPath, setExistingAttachmentPath] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => Promise<void> | void } | null>(null);
+  const [isConfirmActionSubmitting, setIsConfirmActionSubmitting] = useState(false);
 
   const selectedClass = useMemo(
     () => classes.find(item => item.id === selectedClassId) || null,
@@ -104,12 +108,116 @@ export default function HomeworkManager() {
     return resolveStorageUrl(candidate, ['course_profile', 'class_image', 'student_profile']);
   };
 
+  const resolveHomeworkAttachmentUrl = (rawValue: unknown) => {
+    const resolved = resolveStorageUrl(rawValue, ['homework_files']);
+    return resolved || '';
+  };
+
+  const extractHomeworkStoragePath = (value: unknown): string | null => {
+    if (typeof value !== 'string') return null;
+    const candidate = value.trim();
+    if (!candidate) return null;
+
+    if (/^https?:\/\//i.test(candidate)) {
+      const marker = '/object/public/homework_files/';
+      const markerIndex = candidate.indexOf(marker);
+      if (markerIndex >= 0) {
+        const remainder = candidate.slice(markerIndex + marker.length).split('?')[0];
+        return decodeURIComponent(remainder);
+      }
+      return null;
+    }
+
+    const cleaned = candidate.replace(/^\/+/, '').replace(/^homework_files\//, '');
+    return cleaned || null;
+  };
+
+  const getAttachmentValueFromRow = (row: any): string | null => {
+    const rawValue =
+      row?.attachment_url
+      ?? row?.attachmentUrl
+      ?? row?.file_url
+      ?? row?.fileUrl
+      ?? row?.document_url
+      ?? row?.documentUrl
+      ?? row?.attachment
+      ?? row?.file_path
+      ?? row?.filePath
+      ?? null;
+
+    if (!rawValue) return null;
+    const asString = String(rawValue);
+    return resolveHomeworkAttachmentUrl(asString) || asString;
+  };
+
   const resetComposer = () => {
     setEditingHomeworkId(null);
     setTitle('');
     setBody('');
     setSelectedFile(null);
+    setExistingAttachmentUrl(null);
+    setExistingAttachmentPath(null);
     setIsComposerOpen(false);
+  };
+
+  const clearAttachmentReference = async (homeworkId: string) => {
+    const candidatePayloads = [
+      { attachment_url: null },
+      { file_url: null },
+      { document_url: null },
+      { file_path: null },
+    ];
+
+    let lastError: any = null;
+
+    for (const payload of candidatePayloads) {
+      const { error: updateError } = await supabase
+        .from('homework_assignments')
+        .update(payload)
+        .eq('id', homeworkId);
+
+      if (!updateError) {
+        return;
+      }
+
+      lastError = updateError;
+      if (!/column|schema cache|does not exist/i.test(updateError.message || '')) {
+        throw updateError;
+      }
+    }
+
+    if (lastError) {
+      throw lastError;
+    }
+  };
+
+  const deleteAttachmentFile = async (rawReference: string | null) => {
+    if (!rawReference) return;
+    const storagePath = extractHomeworkStoragePath(rawReference);
+    if (!storagePath) return;
+
+    const { error: removeError } = await supabase.storage
+      .from('homework_files')
+      .remove([storagePath]);
+
+    if (removeError) {
+      console.warn('Failed to delete homework file from storage:', removeError.message);
+    }
+  };
+
+  const openConfirmDialog = (message: string, action: () => Promise<void> | void) => {
+    setConfirmDialog({
+      message,
+      onConfirm: async () => {
+        setIsConfirmActionSubmitting(true);
+        try {
+          await action();
+          setConfirmDialog(null);
+        } finally {
+          setIsConfirmActionSubmitting(false);
+        }
+      },
+    });
   };
 
   const fetchAcademicData = async () => {
@@ -211,11 +319,12 @@ export default function HomeworkManager() {
     try {
       let rows: any[] = [];
       let fetchError: any = null;
+      let bucketFileUrls: string[] = [];
 
       {
         const result = await supabase
           .from('homework_assignments')
-          .select('id, class_id, class_course_id, title, description, attachment_url, created_at')
+          .select('*')
           .eq('class_id', classId)
           .eq('class_course_id', courseId)
           .order('created_at', { ascending: false });
@@ -224,31 +333,45 @@ export default function HomeworkManager() {
         fetchError = result.error;
       }
 
-      if (fetchError && /attachment_url|column|schema cache|does not exist/i.test(fetchError.message || '')) {
-        const fallbackResult = await supabase
-          .from('homework_assignments')
-          .select('id, class_id, class_course_id, title, description, created_at')
-          .eq('class_id', classId)
-          .eq('class_course_id', courseId)
-          .order('created_at', { ascending: false });
-
-        rows = fallbackResult.data || [];
-        fetchError = fallbackResult.error;
-      }
-
       if (fetchError) {
         throw fetchError;
       }
 
-      const mappedItems: HomeworkItem[] = rows.map((row: any) => ({
-        id: String(row.id),
-        class_id: String(row.class_id),
-        class_course_id: String(row.class_course_id),
-        title: String(row.title || ''),
-        description: String(row.description || ''),
-        attachment_url: row.attachment_url ? String(row.attachment_url) : null,
-        created_at: row.created_at ? String(row.created_at) : undefined,
-      }));
+      {
+        const folder = `homework/${classId}/${courseId}`;
+        const listResult = await supabase.storage
+          .from('homework_files')
+          .list(folder, {
+            limit: 100,
+            sortBy: { column: 'created_at', order: 'desc' },
+          });
+
+        if (!listResult.error) {
+          bucketFileUrls = (listResult.data || [])
+            .filter((file: any) => file?.name)
+            .map((file: any) => {
+              const path = `${folder}/${file.name}`;
+              const { data } = supabase.storage.from('homework_files').getPublicUrl(path);
+              return data?.publicUrl || '';
+            })
+            .filter((url: string) => Boolean(url));
+        }
+      }
+
+      const mappedItems: HomeworkItem[] = rows.map((row: any, index: number) => {
+        const dbAttachment = getAttachmentValueFromRow(row);
+        const bucketAttachment = bucketFileUrls[index] || null;
+
+        return {
+          id: String(row.id),
+          class_id: String(row.class_id),
+          class_course_id: String(row.class_course_id),
+          title: String(row.title || ''),
+          description: String(row.description || ''),
+          attachment_url: dbAttachment || bucketAttachment,
+          created_at: row.created_at ? String(row.created_at) : undefined,
+        };
+      });
 
       setHomeworkItems(mappedItems);
       setOpenHomework({});
@@ -330,6 +453,8 @@ export default function HomeworkManager() {
 
         if (uploadedUrl !== undefined) {
           payload.attachment_url = uploadedUrl || null;
+        } else if (!existingAttachmentUrl) {
+          payload.attachment_url = null;
         }
 
         let updateError: any = null;
@@ -353,6 +478,10 @@ export default function HomeworkManager() {
 
         if (updateError) {
           throw updateError;
+        }
+
+        if (uploadedUrl && existingAttachmentPath) {
+          await deleteAttachmentFile(existingAttachmentPath);
         }
       } else {
         const payload: any = {
@@ -400,33 +529,58 @@ export default function HomeworkManager() {
     setTitle(item.title);
     setBody(item.description || '');
     setSelectedFile(null);
+    setExistingAttachmentUrl(item.attachment_url || null);
+    setExistingAttachmentPath(extractHomeworkStoragePath(item.attachment_url || null));
     setIsComposerOpen(true);
   };
 
-  const handleDeleteHomework = async (id: string) => {
-    const confirmed = window.confirm('Delete this homework item?');
-    if (!confirmed) return;
+  const handleDeleteAttachmentOnly = async (homeworkId: string, attachmentRef: string | null, keepEditorOpen = false) => {
+    openConfirmDialog('Delete this attached file?', async () => {
+      setIsSavingHomework(true);
+      setError(null);
 
-    setIsSavingHomework(true);
-    setError(null);
+      try {
+        await clearAttachmentReference(homeworkId);
+        await deleteAttachmentFile(attachmentRef);
 
-    try {
-      const { error: deleteError } = await supabase
-        .from('homework_assignments')
-        .delete()
-        .eq('id', id);
+        if (keepEditorOpen) {
+          setExistingAttachmentUrl(null);
+          setExistingAttachmentPath(null);
+        }
 
-      if (deleteError) {
-        throw deleteError;
+        await fetchHomework(selectedClassId, selectedCourseId);
+      } catch (deleteError: any) {
+        console.error('Failed to delete attachment:', deleteError);
+        setError(deleteError?.message || 'Failed to delete attachment.');
+      } finally {
+        setIsSavingHomework(false);
       }
+    });
+  };
 
-      await fetchHomework(selectedClassId, selectedCourseId);
-    } catch (deleteError: any) {
-      console.error('Failed to delete homework:', deleteError);
-      setError(deleteError?.message || 'Failed to delete homework.');
-    } finally {
-      setIsSavingHomework(false);
-    }
+  const handleDeleteHomework = async (id: string) => {
+    openConfirmDialog('Delete this homework item?', async () => {
+      setIsSavingHomework(true);
+      setError(null);
+
+      try {
+        const { error: deleteError } = await supabase
+          .from('homework_assignments')
+          .delete()
+          .eq('id', id);
+
+        if (deleteError) {
+          throw deleteError;
+        }
+
+        await fetchHomework(selectedClassId, selectedCourseId);
+      } catch (deleteError: any) {
+        console.error('Failed to delete homework:', deleteError);
+        setError(deleteError?.message || 'Failed to delete homework.');
+      } finally {
+        setIsSavingHomework(false);
+      }
+    });
   };
 
   const toggleHomeworkOpen = (id: string) => {
@@ -595,11 +749,13 @@ export default function HomeworkManager() {
                     setTitle('');
                     setBody('');
                     setSelectedFile(null);
+                    setExistingAttachmentUrl(null);
+                    setExistingAttachmentPath(null);
                   }
                 }}
                 className="px-4 py-2.5 rounded-xl bg-brand-500 text-white text-xs font-black uppercase tracking-widest"
               >
-                {editingHomeworkId ? 'Editing Homework' : isComposerOpen ? 'Close Editor' : 'Edit Homework'}
+                {editingHomeworkId ? 'Editing Homework' : isComposerOpen ? 'Close Create Homework' : 'Create Homework'}
               </button>
             </div>
 
@@ -666,6 +822,29 @@ export default function HomeworkManager() {
                   />
                   {selectedFile && (
                     <p className="text-xs font-semibold text-slate-500">Selected: {selectedFile.name}</p>
+                  )}
+                  {!selectedFile && existingAttachmentUrl && (
+                    <div className="flex flex-wrap items-center gap-3">
+                      <a
+                        href={existingAttachmentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-brand-500"
+                      >
+                        <i className="fas fa-paperclip"></i>
+                        Open Current Attachment
+                      </a>
+                      {editingHomeworkId && (
+                        <button
+                          onClick={() => void handleDeleteAttachmentOnly(editingHomeworkId, existingAttachmentPath || existingAttachmentUrl, true)}
+                          disabled={isSavingHomework}
+                          className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-rose-500 disabled:opacity-60"
+                        >
+                          <i className="fas fa-trash"></i>
+                          Delete Attachment
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -739,15 +918,25 @@ export default function HomeworkManager() {
                           <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800 pt-3 space-y-3">
                             <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{item.description}</p>
                             {item.attachment_url ? (
-                              <a
-                                href={item.attachment_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-brand-500"
-                              >
-                                <i className="fas fa-paperclip"></i>
-                                Open Attachment
-                              </a>
+                              <div className="flex flex-wrap items-center gap-3">
+                                <a
+                                  href={item.attachment_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-brand-500"
+                                >
+                                  <i className="fas fa-paperclip"></i>
+                                  Open Attachment
+                                </a>
+                                <button
+                                  onClick={() => void handleDeleteAttachmentOnly(item.id, item.attachment_url)}
+                                  disabled={isSavingHomework}
+                                  className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-rose-500 disabled:opacity-60"
+                                >
+                                  <i className="fas fa-trash"></i>
+                                  Delete Attachment
+                                </button>
+                              </div>
                             ) : (
                               <p className="text-xs font-semibold text-slate-400">No attachment</p>
                             )}
@@ -762,6 +951,32 @@ export default function HomeworkManager() {
           </>
         )}
       </div>
+
+      {confirmDialog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-premium">
+            <h5 className="text-sm font-black uppercase tracking-widest text-slate-500">Confirm Action</h5>
+            <p className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">{confirmDialog.message}</p>
+
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                disabled={isConfirmActionSubmitting}
+                className="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-100 text-xs font-black uppercase tracking-widest disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void confirmDialog.onConfirm()}
+                disabled={isConfirmActionSubmitting}
+                className="px-4 py-2.5 rounded-xl bg-rose-500 text-white text-xs font-black uppercase tracking-widest disabled:opacity-60"
+              >
+                {isConfirmActionSubmitting ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
