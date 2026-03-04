@@ -125,7 +125,7 @@ const ClassAndCoursesManager: React.FC<ClassAndCoursesManagerProps> = ({ student
   const loadClasses = React.useCallback(async () => {
     const { data, error } = await supabase
       .from('classes')
-      .select('*, class_students(student_id)')
+      .select('*, class_course_students(student_id)')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -135,8 +135,8 @@ const ClassAndCoursesManager: React.FC<ClassAndCoursesManagerProps> = ({ student
 
     const next = (data || []).map((row: any) => ({
       ...row,
-      student_count: (row.class_students || []).length,
-      student_ids: (row.class_students || []).map((relation: any) => String(relation.student_id)),
+      student_count: Array.from(new Set((row.class_course_students || []).map((relation: any) => String(relation.student_id)))).length,
+      student_ids: Array.from(new Set((row.class_course_students || []).map((relation: any) => String(relation.student_id)))),
       outer_color: row.outer_color || row.color || '#f8fafc',
     }));
 
@@ -613,16 +613,6 @@ const ClassAndCoursesManager: React.FC<ClassAndCoursesManagerProps> = ({ student
           .eq('student_id', studentId);
 
         if (enrollmentDelete.error) throw enrollmentDelete.error;
-
-        const classRelationDelete = await supabase
-          .from('class_students')
-          .delete()
-          .eq('class_id', selectedAttendanceContextId)
-          .eq('student_id', studentId);
-
-        if (classRelationDelete.error) {
-          console.error('Failed to delete class_students relation:', classRelationDelete.error);
-        }
       } else {
         const enrollmentDelete = await supabase
           .from('class_course_students')

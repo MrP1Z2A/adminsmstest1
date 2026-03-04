@@ -28,7 +28,7 @@ interface AttendanceProtocolProps {
   cancelEditClass: () => void;
   saveClassEdits: () => void;
   deleteClass: (classId: string, onDeleted?: () => void) => void;
-  removeStudentFromClass: (classId: string, studentId: string) => void;
+  removeStudentFromClass: (classId: string, studentId: string, classCourseId?: string) => void;
   selectedAttendanceSubject: string | null;
   setSelectedAttendanceSubject: (id: string | null) => void;
   subjectAttendanceStore: Record<string, Record<string, Record<string, 'P' | 'A' | 'L'>>>;
@@ -1510,7 +1510,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
                           </div>
                           {activeClassId && (
                             <button
-                              onClick={() => removeStudentFromClass(activeClassId, String(s.id))}
+                              onClick={() => removeStudentFromClass(activeClassId, String(s.id), courseAttendanceOnly && focusCourse?.id ? String(focusCourse.id) : undefined)}
                               className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-500 flex items-center justify-center"
                               title="Delete student"
                             >

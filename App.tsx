@@ -316,7 +316,7 @@ const App: React.FC = () => {
   const fetchClasses = async () => {
     const { data, error } = await supabase
       .from('classes')
-      .select('*, class_students(student_id)')
+      .select('*, class_course_students(student_id)')
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -324,8 +324,8 @@ const App: React.FC = () => {
         ...classItem,
         class_code: classItem.class_code || null,
         outer_color: classItem.color || classItem.outer_color || '#f8fafc',
-        student_ids: (classItem.class_students || []).map((relation: any) => String(relation.student_id)),
-        student_count: (classItem.class_students || []).length,
+        student_ids: Array.from(new Set((classItem.class_course_students || []).map((relation: any) => String(relation.student_id)))),
+        student_count: Array.from(new Set((classItem.class_course_students || []).map((relation: any) => String(relation.student_id)))).length,
       }));
       setClasses(mappedClasses);
     }
@@ -670,13 +670,54 @@ const App: React.FC = () => {
     setClassDeleteError(null);
   };
 
-  const removeStudentFromClass = async (classId: string, studentId: string) => {
+  const removeStudentFromClass = async (classId: string, studentId: string, classCourseId?: string) => {
     setConfirmDialog({
       message: 'are you sure to remove this student?',
       onConfirm: async () => {
         try {
+          if (classCourseId) {
+            let courseError: any = null;
+
+            {
+              const result = await supabase
+                .from('class_course_students')
+                .delete()
+                .eq('class_id', classId)
+                .eq('class_course_id', classCourseId)
+                .eq('student_id', studentId);
+              courseError = result.error;
+            }
+
+            if (courseError && /class_id|column|schema cache|does not exist/i.test(courseError.message || '')) {
+              const fallbackResult = await supabase
+                .from('class_course_students')
+                .delete()
+                .eq('class_course_id', classCourseId)
+                .eq('student_id', studentId);
+              courseError = fallbackResult.error;
+            }
+
+            if (courseError && !isCourseAssignmentSchemaMissing(courseError.message)) {
+              throw courseError;
+            }
+
+            const verifyResult = await supabase
+              .from('class_course_students')
+              .select('student_id')
+              .eq('class_course_id', classCourseId)
+              .eq('student_id', studentId)
+              .limit(1);
+
+            if (!verifyResult.error && (verifyResult.data || []).length > 0) {
+              throw new Error('Student still exists in class_course_students after delete attempt.');
+            }
+
+            notify('Student removed from course.');
+            return;
+          }
+
           const { error } = await supabase
-            .from('class_students')
+            .from('class_course_students')
             .delete()
             .eq('class_id', classId)
             .eq('student_id', studentId);
@@ -724,18 +765,8 @@ const App: React.FC = () => {
       return;
     }
 
-    const payload = idsToInsert.map(studentId => ({
-      class_id: classId,
-      student_id: studentId,
-    }));
-
-    const { error } = await supabase
-      .from('class_students')
-      .insert(payload);
-
-    if (error && !/duplicate key|already exists/i.test(error.message || '')) {
-      console.error('Bulk class assignment failed:', error);
-      notify(`Failed to assign students: ${error.message || 'Unknown error'}`);
+    if (!classCourseId) {
+      notify('Please select a class course when assigning students.');
       return;
     }
 
@@ -750,39 +781,37 @@ const App: React.FC = () => {
       };
     }));
 
-    if (classCourseId) {
-      const coursePayload = idsToInsert.map(studentId => ({
-        class_id: classId,
-        class_course_id: classCourseId,
+    const coursePayload = idsToInsert.map(studentId => ({
+      class_id: classId,
+      class_course_id: classCourseId,
+      student_id: studentId,
+    }));
+
+    const primaryCourseAssign = await supabase
+      .from('class_course_students')
+      .insert(coursePayload);
+
+    if (primaryCourseAssign.error && isCourseAssignmentSchemaMissing(primaryCourseAssign.error.message)) {
+      const fallbackCoursePayload = idsToInsert.map(studentId => ({
+        course_id: classCourseId,
         student_id: studentId,
       }));
 
-      const primaryCourseAssign = await supabase
-        .from('class_course_students')
-        .insert(coursePayload);
+      const fallbackCourseAssign = await supabase
+        .from('student_courses')
+        .insert(fallbackCoursePayload);
 
-      if (primaryCourseAssign.error && isCourseAssignmentSchemaMissing(primaryCourseAssign.error.message)) {
-        const fallbackCoursePayload = idsToInsert.map(studentId => ({
-          course_id: classCourseId,
-          student_id: studentId,
-        }));
-
-        const fallbackCourseAssign = await supabase
-          .from('student_courses')
-          .insert(fallbackCoursePayload);
-
-        if (fallbackCourseAssign.error && !/duplicate key|already exists/i.test(fallbackCourseAssign.error.message || '')) {
-          if (isCourseAssignmentSchemaMissing(fallbackCourseAssign.error.message)) {
-            notify('Course assignment skipped: no supported course-student table found. Create public.class_course_students in Supabase.');
-            return;
-          }
-          notify(`Class assignment completed, but course assignment failed: ${fallbackCourseAssign.error.message || 'Unknown error'}`);
+      if (fallbackCourseAssign.error && !/duplicate key|already exists/i.test(fallbackCourseAssign.error.message || '')) {
+        if (isCourseAssignmentSchemaMissing(fallbackCourseAssign.error.message)) {
+          notify('Course assignment skipped: no supported course-student table found. Create public.class_course_students in Supabase.');
           return;
         }
-      } else if (primaryCourseAssign.error && !/duplicate key|already exists/i.test(primaryCourseAssign.error.message || '')) {
-        notify(`Class assignment completed, but course assignment failed: ${primaryCourseAssign.error.message || 'Unknown error'}`);
+        notify(`Class assignment completed, but course assignment failed: ${fallbackCourseAssign.error.message || 'Unknown error'}`);
         return;
       }
+    } else if (primaryCourseAssign.error && !/duplicate key|already exists/i.test(primaryCourseAssign.error.message || '')) {
+      notify(`Class assignment completed, but course assignment failed: ${primaryCourseAssign.error.message || 'Unknown error'}`);
+      return;
     }
 
     notify(`${idsToInsert.length} student(s) added to ${targetClass.name || targetClass.class_code || 'selected class'}${classCourseId ? ' and selected course' : ''}.`);
@@ -798,23 +827,13 @@ const App: React.FC = () => {
     setConfirmDialog({
       message: `Delete ${uniqueIds.length} selected student(s)? This action is irreversible.`,
       onConfirm: async () => {
-        const { error: classRelationDeleteError } = await supabase
-          .from('class_students')
-          .delete()
-          .in('student_id', uniqueIds);
-
-        if (classRelationDeleteError) {
-          notify(`Failed to delete class relations: ${classRelationDeleteError.message || 'Unknown error'}`);
-          return;
-        }
-
-        const { error: classCourseRelationDeleteError } = await supabase
+        const classRelationDeleteResult = await supabase
           .from('class_course_students')
           .delete()
           .in('student_id', uniqueIds);
 
-        if (classCourseRelationDeleteError && !isCourseAssignmentSchemaMissing(classCourseRelationDeleteError.message)) {
-          notify(`Failed to delete class-course relations: ${classCourseRelationDeleteError.message || 'Unknown error'}`);
+        if (classRelationDeleteResult.error && !isCourseAssignmentSchemaMissing(classRelationDeleteResult.error.message)) {
+          notify(`Failed to delete class relations: ${classRelationDeleteResult.error.message || 'Unknown error'}`);
           return;
         }
 
@@ -1475,11 +1494,11 @@ const App: React.FC = () => {
 
       if (studentDeleteDialog.entityType === 'student') {
         const { error: classRelationDeleteError } = await supabase
-          .from('class_students')
+          .from('class_course_students')
           .delete()
           .eq('student_id', studentDeleteDialog.id);
 
-        if (classRelationDeleteError) {
+        if (classRelationDeleteError && !isCourseAssignmentSchemaMissing(classRelationDeleteError.message)) {
           console.error('Class relation delete error:', classRelationDeleteError);
           setStudentDeleteError('Failed to delete student class relations.');
           return;
@@ -1565,10 +1584,10 @@ const App: React.FC = () => {
       }
 
       const { error: relationDeleteError } = await supabase
-        .from('class_students')
+        .from('class_course_students')
         .delete()
         .eq('class_id', classDeleteDialog.id);
-      if (relationDeleteError) {
+      if (relationDeleteError && !isCourseAssignmentSchemaMissing(relationDeleteError.message)) {
         console.error('Delete class relations error:', relationDeleteError);
         setClassDeleteError('Failed to delete class students relations.');
         return;
@@ -1729,14 +1748,6 @@ const App: React.FC = () => {
           .eq('id', updatedStudent.id);
 
         if (dbError) throw dbError;
-
-        const { error: classAssignError } = await supabase
-          .from('class_students')
-          .insert([{ class_id: enrollData.selectedClassId, student_id: updatedStudent.id }]);
-
-        if (classAssignError && !/duplicate key|already exists/i.test(classAssignError.message || '')) {
-          throw classAssignError;
-        }
 
         {
           const primaryCourseAssign = await supabase
@@ -1917,29 +1928,6 @@ const App: React.FC = () => {
       const assignmentIssues: string[] = [];
 
       {
-        const classAssignResult = await supabase
-          .from('class_students')
-          .insert([{ class_id: enrollData.selectedClassId, student_id: createdStudent.id }]);
-
-        if (classAssignResult.error && !/duplicate key|already exists/i.test(classAssignResult.error.message || '')) {
-          assignmentIssues.push(`class assignment failed (${classAssignResult.error.message})`);
-        } else {
-          setClasses(prev => prev.map(classItem => {
-            if (String(classItem.id) !== enrollData.selectedClassId) return classItem;
-            const existingIds = (classItem.student_ids || []).map((id: any) => String(id));
-            if (existingIds.includes(String(createdStudent.id))) {
-              return classItem;
-            }
-            return {
-              ...classItem,
-              student_ids: [...existingIds, String(createdStudent.id)],
-              student_count: (classItem.student_count ?? existingIds.length) + 1,
-            };
-          }));
-        }
-      }
-
-      {
         const primaryCourseAssign = await supabase
           .from('class_course_students')
           .insert([{ class_id: enrollData.selectedClassId, class_course_id: enrollData.selectedClassCourseId, student_id: createdStudent.id }]);
@@ -1958,6 +1946,21 @@ const App: React.FC = () => {
           }
         } else if (primaryCourseAssign.error && !/duplicate key|already exists/i.test(primaryCourseAssign.error.message || '')) {
           assignmentIssues.push(`course assignment failed (${primaryCourseAssign.error.message})`);
+        }
+
+        if (!primaryCourseAssign.error || /duplicate key|already exists/i.test(primaryCourseAssign.error.message || '')) {
+          setClasses(prev => prev.map(classItem => {
+            if (String(classItem.id) !== enrollData.selectedClassId) return classItem;
+            const existingIds = (classItem.student_ids || []).map((id: any) => String(id));
+            if (existingIds.includes(String(createdStudent.id))) {
+              return classItem;
+            }
+            return {
+              ...classItem,
+              student_ids: [...existingIds, String(createdStudent.id)],
+              student_count: (classItem.student_count ?? existingIds.length) + 1,
+            };
+          }));
         }
       }
 
