@@ -76,6 +76,14 @@ const Sidebar: React.FC<SidebarProps> = ({
         </SidebarMenuItem>
         <SidebarMenuItem id="homework" icon="fa-book-open" label="Homework" activePage={currentPage} />
         <SidebarMenuItem id="report-card" icon="fa-file-lines" label="Report Card" activePage={currentPage} />
+        <SidebarMenuItem icon="fa-money-bill-wave" label="Payment" activePage={currentPage} hasDropdown>
+            <SidebarSubItem id="payment" label="Payment" activePage={currentPage} />
+          <SidebarSubItem id="payment-assign" label="Assign Payment" activePage={currentPage} />
+            <SidebarSubItem id="payment-history" label="Payment History" activePage={currentPage} />
+            <SidebarSubItem id="late-payment" label="Late Payment" activePage={currentPage} />
+            <SidebarSubItem id="student-finance-status" label="Student Finance Status" activePage={currentPage} />
+        </SidebarMenuItem>
+        <SidebarMenuItem id="exam" icon="fa-clipboard-check" label="Exam Management" activePage={currentPage} />
         <SidebarMenuItem id="security" icon="fa-user-shield" label="Security Permission" activePage={currentPage} />
       </nav>
     </aside>

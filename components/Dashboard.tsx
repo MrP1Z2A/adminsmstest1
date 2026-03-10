@@ -12,7 +12,7 @@ interface DashboardProps {
   stats: {
     totalStudents: number;
     totalParents: number;
-    demoEarning: number;
+    totalEarningMMK: number;
     totalTeachers: number;
     genderBreakdown: {
       male: number;
@@ -25,7 +25,7 @@ interface DashboardProps {
   };
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
+const Dashboard: React.FC<DashboardProps> = React.memo(({ stats }) => {
   const totalStudents = stats.genderBreakdown.male + stats.genderBreakdown.female;
   const totalTeachers = stats.teacherGenderBreakdown.male + stats.teacherGenderBreakdown.female;
   const maleValue = stats.genderBreakdown.male;
@@ -74,7 +74,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
     { label: 'Total Students', val: stats.totalStudents, icon: 'fa-user-graduate', color: 'text-brand-500', bg: 'bg-brand-50', layout: 'sm:col-start-1 sm:row-start-1' },
     { label: 'Total Parents', val: stats.totalParents, icon: 'fa-people-roof', color: 'text-sky-600', bg: 'bg-sky-50', layout: 'sm:col-start-1 sm:row-start-2' },
     { label: 'Total Teachers', val: stats.totalTeachers, icon: 'fa-chalkboard-teacher', color: 'text-emerald-500', bg: 'bg-emerald-50', layout: 'sm:col-start-2 sm:row-start-1' },
-    { label: 'Demo Earning', val: `$${stats.demoEarning.toLocaleString()}`, icon: 'fa-sack-dollar', color: 'text-amber-600', bg: 'bg-amber-50', layout: 'sm:col-start-2 sm:row-start-2' },
+    { label: 'Total Earning', val: `${stats.totalEarningMMK.toLocaleString()} MMK`, icon: 'fa-sack-dollar', color: 'text-amber-600', bg: 'bg-amber-50', layout: 'sm:col-start-2 sm:row-start-2' },
   ];
 
   return (
@@ -114,6 +114,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                   data={maleRingData}
                   dataKey="value"
                   nameKey="name"
+                  isAnimationActive={false}
                   cx="50%"
                   cy="50%"
                   innerRadius={44}
@@ -130,6 +131,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                   data={femaleRingData}
                   dataKey="value"
                   nameKey="name"
+                  isAnimationActive={false}
                   cx="50%"
                   cy="50%"
                   innerRadius={28}
@@ -173,6 +175,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                   data={maleTeacherRingData}
                   dataKey="value"
                   nameKey="name"
+                  isAnimationActive={false}
                   cx="50%"
                   cy="50%"
                   innerRadius={44}
@@ -189,6 +192,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                   data={femaleTeacherRingData}
                   dataKey="value"
                   nameKey="name"
+                  isAnimationActive={false}
                   cx="50%"
                   cy="50%"
                   innerRadius={28}
@@ -242,7 +246,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                   tick={{ fill: '#64748b', fontSize: 12, fontWeight: 700 }}
                 />
                 <Tooltip formatter={(value: number) => [`${value}%`, 'Students']} cursor={{ fill: 'rgba(99, 102, 241, 0.08)' }} />
-                <Bar dataKey="percentage" fill="#5b7be3" radius={[6, 6, 0, 0]} maxBarSize={44} />
+                <Bar dataKey="percentage" fill="#5b7be3" radius={[6, 6, 0, 0]} maxBarSize={44} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -250,6 +254,6 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
       </div>
     </div>
   );
-};
+});
 
 export default Dashboard;

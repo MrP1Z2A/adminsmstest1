@@ -17,6 +17,8 @@ import AttendanceProtocol from './components/AttendanceProtocol';
 import LiveCalendar from './components/LiveCalendar';
 import HomeworkManager from './components/HomeworkManager';
 import ReportCardPage from './components/Reportcard';
+import ExamManagementPage from './components/exammangement.tsx';
+import PaymentFinanceHub from './components/PaymentFinanceHub';
 import EnrollmentModal from './components/Modals/EnrollmentModal';
 import TeacherEnrollmentModal from './components/Modals/TeacherEnrollmentModal';
 import EditModal from './components/Modals/EditModal';
@@ -129,6 +131,7 @@ const App: React.FC = () => {
   const [homeworks, setHomeworks] = useState(INITIAL_HOMEWORK);
   const [programs, setPrograms] = useState(INITIAL_PROGRAMS);
   const [parents, setParents] = useState(INITIAL_PARENTS);
+  const [totalEarningMMK, setTotalEarningMMK] = useState(0);
   const [policies, setPolicies] = useState({
     mfaRequired: true,
     ipWhitelist: false,
@@ -190,7 +193,6 @@ const App: React.FC = () => {
     const totalStudents = allStudents.length || students.length;
     const totalTeachers = teachers.length;
     const totalParents = parents.length;
-    const demoEarning = 0;
     const maleStudents = students.filter(student => student.gender === 'Male').length;
     const femaleStudents = students.filter(student => student.gender === 'Female').length;
     const maleTeachers = teachers.filter(teacher => teacher.gender === 'Male').length;
@@ -199,7 +201,7 @@ const App: React.FC = () => {
     return {
       totalStudents,
       totalParents,
-      demoEarning,
+      totalEarningMMK,
       totalTeachers,
       genderBreakdown: {
         male: maleStudents,
@@ -210,7 +212,7 @@ const App: React.FC = () => {
         female: femaleTeachers,
       },
     };
-  }, [students, teachers, parents, allStudents]);
+  }, [students, teachers, parents, allStudents, totalEarningMMK]);
 
   const notify = useCallback((message: string) => {
     setNotification({ message, type: 'info' });
@@ -312,6 +314,25 @@ const App: React.FC = () => {
         setParents(fallbackResult.data);
       }
     }
+  };
+
+  const fetchTotalEarnings = async () => {
+    const { data, error } = await supabase
+      .from('student_payments')
+      .select('amount_mmk, status');
+
+    if (error) {
+      setTotalEarningMMK(0);
+      return;
+    }
+
+    const total = (data || []).reduce((sum: number, row: any) => {
+      const status = String(row?.status || '').toLowerCase();
+      if (status !== 'paid') return sum;
+      return sum + Number(row?.amount_mmk || 0);
+    }, 0);
+
+    setTotalEarningMMK(Math.round(total));
   };
 
   const fetchClasses = async () => {
@@ -1001,7 +1022,14 @@ const App: React.FC = () => {
     fetchTeachers();
     fetchParents();
     fetchClasses();
+    fetchTotalEarnings();
   }, []);
+
+  useEffect(() => {
+    if (currentPage === 'dashboard') {
+      void fetchTotalEarnings();
+    }
+  }, [currentPage]);
 
   useEffect(() => {
     if ((currentPage === 'student-attendance' || currentPage === 'class-attendance') && attendanceDate) {
@@ -2995,27 +3023,7 @@ const App: React.FC = () => {
 
           {/* EXAM PAGE - WITH CRUD */}
           {currentPage === 'exam' && (
-            <div className="space-y-12 animate-in fade-in duration-700 pb-20">
-               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter">Evaluation Hub</h2>
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-                  {exams.map((exam) => (
-                    <div key={exam.id} className="bg-white dark:bg-slate-900 rounded-[64px] p-12 shadow-premium border border-slate-100 dark:border-slate-800 hover:-translate-y-3 transition-all relative group overflow-hidden">
-                       <div className="flex justify-between items-start mb-10">
-                          <div className={`w-20 h-20 ${exam.bg} ${exam.color} rounded-[32px] flex items-center justify-center text-3xl shadow-inner group-hover:rotate-12 transition-transform`}><i className="fas fa-calendar-check"></i></div>
-                          <span className="px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest bg-slate-50 dark:bg-slate-800 text-slate-400">{exam.date}</span>
-                       </div>
-                       <h4 className="text-2xl font-black mb-10 tracking-tight leading-tight group-hover:text-brand-500 transition-colors">{exam.subject}</h4>
-                       <div className="flex items-center justify-between border-t border-slate-50 dark:border-slate-800 pt-8 mt-4">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{exam.priority} Priority</span>
-                          <div className="flex gap-4">
-                             <button onClick={() => openEditModal('exam', exam)} className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-brand-500 transition-all"><i className="fas fa-edit"></i></button>
-                             <button onClick={() => deleteEntity(exam.id, 'exam')} className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all"><i className="fas fa-trash"></i></button>
-                          </div>
-                       </div>
-                    </div>
-                  ))}
-               </div>
-            </div>
+            <ExamManagementPage />
           )}
 
           {/* SUBJECT PAGE - WITH CRUD */}
@@ -3052,6 +3060,26 @@ const App: React.FC = () => {
 
           {currentPage === 'report-card' && (
             <ReportCardPage />
+          )}
+
+          {currentPage === 'payment' && (
+            <PaymentFinanceHub view="payment" />
+          )}
+
+          {currentPage === 'payment-assign' && (
+            <PaymentFinanceHub view="payment-assign" />
+          )}
+
+          {currentPage === 'payment-history' && (
+            <PaymentFinanceHub view="payment-history" />
+          )}
+
+          {currentPage === 'late-payment' && (
+            <PaymentFinanceHub view="late-payment" />
+          )}
+
+          {currentPage === 'student-finance-status' && (
+            <PaymentFinanceHub view="student-finance-status" />
           )}
 
           {/* PROGRAMS PAGE - WITH CRUD */}
@@ -3102,7 +3130,7 @@ const App: React.FC = () => {
           )}
 
           {/* FALLBACK HUB */}
-          {![ 'dashboard', 'live-calendar', 'students', 'student-attendance', 'class-attendance', 'class-course', 'student-register', 'teacher-register', 'teachers', 'library', 'homework', 'report-card', 'programs', 'exam', 'security', 'subject' ].includes(currentPage) && (
+          {![ 'dashboard', 'live-calendar', 'students', 'student-attendance', 'class-attendance', 'class-course', 'student-register', 'teacher-register', 'teachers', 'library', 'homework', 'report-card', 'payment', 'payment-assign', 'payment-history', 'late-payment', 'student-finance-status', 'programs', 'exam', 'security', 'subject' ].includes(currentPage) && (
             <div className="bg-white dark:bg-slate-900 p-6 sm:p-10 md:p-16 lg:p-24 rounded-[40px] sm:rounded-[72px] lg:rounded-[120px] text-center shadow-premium animate-in zoom-in-95 duration-500 border border-slate-100 dark:border-slate-800">
               <div className="w-24 h-24 sm:w-36 sm:h-36 lg:w-48 lg:h-48 bg-brand-500/10 text-brand-500 rounded-[32px] sm:rounded-[56px] lg:rounded-[80px] flex items-center justify-center mx-auto mb-8 sm:mb-12 lg:mb-16 text-4xl sm:text-6xl lg:text-8xl shadow-inner group-hover:rotate-12 transition-all"><i className="fas fa-microchip"></i></div>
               <h3 className="text-2xl sm:text-4xl lg:text-6xl font-black tracking-tighter capitalize">{currentPage.replace('-', ' ')} Hub</h3>

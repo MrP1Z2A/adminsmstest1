@@ -1256,26 +1256,6 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
                 </div>
               </div>
             </div>
-            {activeAttendanceId && (
-              <button 
-                onClick={async () => {
-                  if (selectedClassId) {
-                    await markAllPresentForClass();
-                  } else if (selectedAttendanceSubject) {
-                    await bulkMarkSubjectPresent(
-                      'subject',
-                      selectedAttendanceSubject,
-                      attendanceDate,
-                      activeStudents.map(student => String(student.id)),
-                      subjects.find(s => s.id === selectedAttendanceSubject)?.name
-                    );
-                  }
-                }} 
-                className="w-full xl:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-800 dark:text-white font-black rounded-[24px] sm:rounded-[32px] text-[10px] sm:text-xs uppercase tracking-widest shadow-premium"
-              >
-                Mark All Present
-              </button>
-            )}
           </div>
         </>
       )}

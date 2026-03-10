@@ -87,4 +87,9 @@ export type PageId =
   | 'ai-chat'
   | 'programs'
   | 'homework'
-  | 'report-card';
+  | 'report-card'
+  | 'payment'
+  | 'payment-assign'
+  | 'payment-history'
+  | 'late-payment'
+  | 'student-finance-status';
