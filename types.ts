@@ -64,6 +64,8 @@ export interface Student {
 export type PageId = 
   | 'dashboard' 
   | 'students' 
+  | 'parents'
+  | 'parent-detail'
   | 'student-import'
   | 'student-register'
   | 'teacher-register'
@@ -81,6 +83,7 @@ export type PageId =
   | 'attendance' 
   | 'exam' 
   | 'notice' 
+  | 'notice-detail'
   | 'transport' 
   | 'hostel' 
   | 'security' 
@@ -92,4 +95,6 @@ export type PageId =
   | 'payment-assign'
   | 'payment-history'
   | 'late-payment'
-  | 'student-finance-status';
+  | 'student-finance-status'
+  | 'student-service'
+  | 'student-service-batch';

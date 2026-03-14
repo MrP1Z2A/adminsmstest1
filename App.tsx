@@ -11,14 +11,20 @@ import { authService } from './services/authService';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import StudentDirectory from './components/StudentDirectory';
+import ParentDirectory from './components/ParentDirectory';
+import ParentDetailPage from './components/ParentDetailPage';
 import RegistrationHub from './components/RegistrationHub';
 import TeacherRegistrationHub from './components/TeacherRegistrationHub';
+import StudentServiceBatchRegister from './components/StudentServiceBatchRegister';
 import AttendanceProtocol from './components/AttendanceProtocol';
 import LiveCalendar from './components/LiveCalendar';
 import HomeworkManager from './components/HomeworkManager';
 import ReportCardPage from './components/Reportcard';
 import ExamManagementPage from './components/exammangement.tsx';
+import NoticeBoard from './components/NoticeBoard';
+import NoticeDetailPage from './components/NoticeDetailPage';
 import PaymentFinanceHub from './components/PaymentFinanceHub';
+import SecurityPermission from './components/Modals/SecurityPermission';
 import EnrollmentModal from './components/Modals/EnrollmentModal';
 import TeacherEnrollmentModal from './components/Modals/TeacherEnrollmentModal';
 import EditModal from './components/Modals/EditModal';
@@ -112,6 +118,8 @@ const getInitialTeacherEnrollData = () => ({
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
+  const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
+  const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [selectedClassAttendanceId, setSelectedClassAttendanceId] = useState<string | null>(null);
   const [selectedClassCourse, setSelectedClassCourse] = useState<{ id: string; name: string; classId: string; className?: string } | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -167,6 +175,10 @@ const App: React.FC = () => {
   const [isTeacherEnrollModalOpen, setIsTeacherEnrollModalOpen] = useState(false);
   const [teacherEnrollData, setTeacherEnrollData] = useState(getInitialTeacherEnrollData());
   const [isBatchTeacherRegistering, setIsBatchTeacherRegistering] = useState(false);
+  const [studentServiceStaff, setStudentServiceStaff] = useState<Student[]>([]);
+  const [isStudentServiceEnrollModalOpen, setIsStudentServiceEnrollModalOpen] = useState(false);
+  const [studentServiceEnrollData, setStudentServiceEnrollData] = useState(getInitialTeacherEnrollData());
+  const [isBatchStudentServiceRegistering, setIsBatchStudentServiceRegistering] = useState(false);
   const [studentProfileImage, setStudentProfileImage] = useState<File | null>(null);
   const enrollAbortCounterRef = useRef(0);
   const [editTarget, setEditTarget] = useState<{ type: string, data: any } | null>(null);
@@ -314,6 +326,31 @@ const App: React.FC = () => {
         setParents(fallbackResult.data);
       }
     }
+  };
+
+  const fetchStudentServiceStaff = async () => {
+    const orderedResult = await supabase
+      .schema('public')
+      .from('student_services')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!orderedResult.error && Array.isArray(orderedResult.data)) {
+      setStudentServiceStaff(orderedResult.data.map((staff: any) => mapStudentFromDB({ ...staff, role: 'student_service' })));
+      return;
+    }
+
+    const fallbackResult = await supabase
+      .schema('public')
+      .from('student_services')
+      .select('*');
+
+    if (!fallbackResult.error && Array.isArray(fallbackResult.data)) {
+      setStudentServiceStaff(fallbackResult.data.map((staff: any) => mapStudentFromDB({ ...staff, role: 'student_service' })));
+      return;
+    }
+
+    setStudentServiceStaff([]);
   };
 
   const fetchTotalEarnings = async () => {
@@ -1021,6 +1058,7 @@ const App: React.FC = () => {
     fetchAllStudents();
     fetchTeachers();
     fetchParents();
+    fetchStudentServiceStaff();
     fetchClasses();
     fetchTotalEarnings();
   }, []);
@@ -1070,7 +1108,7 @@ const App: React.FC = () => {
       ? globalThis.crypto.randomUUID().replace(/-/g, '')
       : `${Date.now()}${Math.random().toString(36).slice(2, 10)}`;
 
-    return `NODE-${randomSeed.slice(0, 10).toUpperCase()}`;
+    return randomSeed.slice(0, 10).toUpperCase();
   };
 
   const batchRegisterStudents = async (file: File) => {
@@ -1534,6 +1572,11 @@ const App: React.FC = () => {
           case 'exam': setExams(prev => prev.filter(e => e.id !== id)); break;
           case 'homework': setHomeworks(prev => prev.filter(h => h.id !== id)); break;
           case 'program': setPrograms(prev => prev.filter(p => p.id !== id)); break;
+          case 'student-service': {
+            void supabase.schema('public').from('student_services').delete().eq('id', id);
+            setStudentServiceStaff(prev => prev.filter(s => s.id !== id));
+            break;
+          }
         }
         notify(`${type.charAt(0).toUpperCase() + type.slice(1)} node deleted.`);
       }
@@ -1749,6 +1792,16 @@ const App: React.FC = () => {
   const abortTeacherEnrollFlow = () => {
     setIsTeacherEnrollModalOpen(false);
     setTeacherEnrollData(getInitialTeacherEnrollData());
+  };
+
+  const enrollStudentServiceAction = () => {
+    setStudentServiceEnrollData(getInitialTeacherEnrollData());
+    setIsStudentServiceEnrollModalOpen(true);
+  };
+
+  const abortStudentServiceEnrollFlow = () => {
+    setIsStudentServiceEnrollModalOpen(false);
+    setStudentServiceEnrollData(getInitialTeacherEnrollData());
   };
 
   useEffect(() => {
@@ -2142,6 +2195,221 @@ const App: React.FC = () => {
     } catch (error: any) {
       console.error('Teacher enrollment error:', error);
       notify(`Teacher sync failed: ${error?.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleStudentServiceEnrollSubmit = async () => {
+    try {
+      if (!studentServiceEnrollData.name || !studentServiceEnrollData.email) {
+        notify('Please provide both name and email.');
+        return;
+      }
+
+      if (!isValidEmail(studentServiceEnrollData.email)) {
+        notify('Please enter a valid email address.');
+        return;
+      }
+
+      const generatedPassword = generateStudentPassword();
+      const normalizedEmail = studentServiceEnrollData.email.trim().toLowerCase();
+
+      let authUserId: string | null = null;
+      try {
+        const authData = await authService.signUp(normalizedEmail, generatedPassword, studentServiceEnrollData.name, 'teacher');
+        authUserId = authData?.user?.id || null;
+      } catch (authError: any) {
+        console.error('Auth sign-up failed, continuing with staff profile only:', authError);
+      }
+
+      const newStaff: Student = {
+        id: generateStudentNodeId(),
+        name: studentServiceEnrollData.name,
+        role: 'teacher',
+        gender: 'Male',
+        status: Status.PENDING,
+        email: normalizedEmail,
+        attendanceRate: 0,
+        courseAttendance: [],
+        securityStatus: { lastLogin: 'Never', twoFactorEnabled: false, trustedDevices: 0, riskLevel: 'Low' },
+        permissions: { ...INITIAL_PERMISSIONS },
+        type: 'New',
+      };
+
+      const insertPayload = {
+        id: newStaff.id,
+        name: newStaff.name,
+        email: newStaff.email,
+        role: 'student_service',
+        gender: newStaff.gender,
+        status: newStaff.status,
+        type: newStaff.type,
+        auth_user_id: authUserId,
+        temp_password: generatedPassword,
+      };
+
+      let createdRecord: any = null;
+      let dbError: any = null;
+
+      {
+        const result = await supabase.schema('public').from('student_services').insert([insertPayload]).select().single();
+        createdRecord = result.data;
+        dbError = result.error;
+      }
+
+      if (dbError && /invalid input syntax|type uuid|type integer|bigint|smallint/i.test(dbError.message || '')) {
+        const { id, ...payloadWithoutId } = insertPayload;
+        const retryResult = await supabase.schema('public').from('student_services').insert([payloadWithoutId]).select().single();
+        createdRecord = retryResult.data;
+        dbError = retryResult.error;
+      }
+
+      if (dbError) throw dbError;
+
+      const createdStaff = mapStudentFromDB(createdRecord || newStaff);
+      setStudentServiceStaff(prev => [createdStaff, ...prev]);
+      setNewStudentCredentials({ name: createdStaff.name, email: createdStaff.email, password: generatedPassword });
+
+      notify('New Student Service Staff Created & Synced.');
+      abortStudentServiceEnrollFlow();
+    } catch (error: any) {
+      console.error('Student service enrollment error:', error);
+      notify(`Staff registration failed: ${error?.message || 'Unknown error'}`);
+    }
+  };
+
+  const batchRegisterStudentService = async (file: File) => {
+    const allowedExtensions = ['csv', 'tsv', 'xls', 'xlsx', 'ods'];
+    const extension = (file.name.split('.').pop() || '').toLowerCase();
+    if (!allowedExtensions.includes(extension)) {
+      notify('Unsupported file format. Please upload CSV, XLS, XLSX, or ODS file.');
+      return;
+    }
+
+    setIsBatchStudentServiceRegistering(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      if (!firstSheetName) {
+        notify('No sheet found in uploaded file.');
+        return;
+      }
+
+      const sheet = workbook.Sheets[firstSheetName];
+      const rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
+        defval: '',
+        raw: false,
+      });
+
+      if (!rawRows.length) {
+        notify('Uploaded spreadsheet is empty.');
+        return;
+      }
+
+      const getValue = (row: Record<string, any>, keys: string[]) => {
+        const normalizedMap = Object.keys(row).reduce<Record<string, any>>((acc, key) => {
+          const normalized = String(key).toLowerCase().replace(/[^a-z0-9]/g, '');
+          acc[normalized] = row[key];
+          return acc;
+        }, {});
+        for (const key of keys) {
+          const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (normalizedMap[normalized] !== undefined && normalizedMap[normalized] !== null && String(normalizedMap[normalized]).trim() !== '') {
+            return String(normalizedMap[normalized]).trim();
+          }
+        }
+        return '';
+      };
+
+      const parseGender = (value: string): 'Male' | 'Female' => {
+        const normalized = String(value || '').trim().toLowerCase();
+        return normalized === 'female' || normalized === 'f' ? 'Female' : 'Male';
+      };
+
+      const successfulStaff: Student[] = [];
+      const skippedRows: string[] = [];
+
+      for (let index = 0; index < rawRows.length; index += 1) {
+        const row = rawRows[index];
+        const rowNumber = index + 2;
+
+        const name = getValue(row, ['name', 'fullname', 'staffname']);
+        const email = getValue(row, ['email', 'staffemail', 'mail']);
+        const gender = parseGender(getValue(row, ['gender', 'sex']));
+
+        if (!name || !email) {
+          skippedRows.push(`Row ${rowNumber}: missing name or email`);
+          continue;
+        }
+
+        const generatedPassword = generateStudentPassword();
+
+        const newStaff: Student = {
+          id: generateStudentNodeId(),
+          name,
+          role: 'teacher',
+          gender,
+          status: Status.PENDING,
+          email,
+          attendanceRate: 0,
+          courseAttendance: [],
+          securityStatus: { lastLogin: 'Never', twoFactorEnabled: false, trustedDevices: 0, riskLevel: 'Low' },
+          permissions: { ...INITIAL_PERMISSIONS },
+          type: 'New',
+        };
+
+        const payload = {
+          id: newStaff.id,
+          name: newStaff.name,
+          role: 'student_service',
+          gender: newStaff.gender,
+          status: newStaff.status,
+          email: newStaff.email,
+          type: newStaff.type,
+          temp_password: generatedPassword,
+          temp_password_created_at: new Date().toISOString(),
+        };
+
+        let createdRow: any = null;
+        let insertError: any = null;
+
+        {
+          const result = await supabase.schema('public').from('student_services').insert([payload]).select().single();
+          createdRow = result.data;
+          insertError = result.error;
+        }
+
+        if (insertError && /invalid input syntax|type uuid|type integer|bigint|smallint/i.test(insertError.message || '')) {
+          const { id, ...payloadWithoutId } = payload;
+          const retryResult = await supabase.schema('public').from('student_services').insert([payloadWithoutId]).select().single();
+          createdRow = retryResult.data;
+          insertError = retryResult.error;
+        }
+
+        if (insertError) {
+          skippedRows.push(`Row ${rowNumber}: ${insertError.message || 'insert failed'}`);
+          continue;
+        }
+
+        successfulStaff.push(mapStudentFromDB(createdRow || payload));
+      }
+
+      if (successfulStaff.length > 0) {
+        setStudentServiceStaff(prev => [...successfulStaff, ...prev]);
+      }
+
+      if (successfulStaff.length === 0) {
+        notify(`Batch import failed. ${skippedRows.slice(0, 2).join(' | ') || 'No valid rows found.'}`);
+      } else if (skippedRows.length > 0) {
+        notify(`Batch import completed: ${successfulStaff.length} added, ${skippedRows.length} skipped.`);
+      } else {
+        notify(`Batch import completed: ${successfulStaff.length} staff members added.`);
+      }
+    } catch (error: any) {
+      console.error('Batch student service registration error:', error);
+      notify(`Batch registration failed: ${error?.message || 'Unknown error'}`);
+    } finally {
+      setIsBatchStudentServiceRegistering(false);
     }
   };
 
@@ -2782,6 +3050,14 @@ const App: React.FC = () => {
         onSubmit={handleTeacherEnrollSubmit}
       />
 
+      <TeacherEnrollmentModal
+        isOpen={isStudentServiceEnrollModalOpen}
+        onClose={abortStudentServiceEnrollFlow}
+        enrollData={studentServiceEnrollData}
+        setEnrollData={setStudentServiceEnrollData}
+        onSubmit={handleStudentServiceEnrollSubmit}
+      />
+
       {/* GLOBAL EDIT MODAL */}
       <EditModal 
         isOpen={isEditModalOpen}
@@ -2848,6 +3124,27 @@ const App: React.FC = () => {
               updateStudentProfilePhoto={updateStudentProfilePhoto}
               bulkDeleteStudents={bulkDeleteStudents}
               deleteEntity={deleteEntity}
+            />
+          )}
+
+          {currentPage === 'parents' && (
+            <ParentDirectory
+              students={allStudents.length ? allStudents : students}
+              onOpenParent={(parentId) => {
+                setSelectedParentId(parentId);
+                setCurrentPage('parent-detail');
+              }}
+            />
+          )}
+
+          {currentPage === 'parent-detail' && (
+            <ParentDetailPage
+              parentId={selectedParentId}
+              students={allStudents.length ? allStudents : students}
+              classes={classes}
+              onBack={() => {
+                setCurrentPage('parents');
+              }}
             />
           )}
 
@@ -3026,6 +3323,28 @@ const App: React.FC = () => {
             <ExamManagementPage />
           )}
 
+          {currentPage === 'notice' && (
+            <NoticeBoard
+              onOpenNotice={(noticeId) => {
+                setSelectedNoticeId(noticeId);
+                setCurrentPage('notice-detail');
+              }}
+            />
+          )}
+
+          {currentPage === 'notice-detail' && (
+            <NoticeDetailPage
+              noticeId={selectedNoticeId}
+              onBack={() => {
+                setCurrentPage('notice');
+              }}
+            />
+          )}
+
+          {currentPage === 'security' && (
+            <SecurityPermission />
+          )}
+
           {/* SUBJECT PAGE - WITH CRUD */}
           {currentPage === 'subject' && (
             <div className="space-y-12 animate-in fade-in duration-700 pb-20">
@@ -3129,8 +3448,40 @@ const App: React.FC = () => {
             />
           )}
 
+          {/* STUDENT SERVICE DIRECTORY */}
+          {currentPage === 'student-service' && (
+            <StudentDirectory
+              title="Student Service Directory"
+              selectLabel="Staff Select"
+              namePrefix="(SS) "
+              students={studentServiceStaff}
+              classes={classes}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              bulkAssignStudentsToClass={bulkAssignStudentsToClass}
+              openPermissions={openPermissions}
+              openEditModal={openEditModal}
+              requestStudentEditWithPassword={requestStudentEditWithPassword}
+              verifyAdminPassword={verifyAdminPassword}
+              updateStudentProfilePhoto={updateStudentProfilePhoto}
+              bulkDeleteStudents={bulkDeleteStudents}
+              deleteEntity={deleteEntity}
+            />
+          )}
+
+          {/* STUDENT SERVICE BATCH REGISTERING */}
+          {currentPage === 'student-service-batch' && (
+            <StudentServiceBatchRegister
+              studentServiceStaff={studentServiceStaff}
+              enrollStudentServiceAction={enrollStudentServiceAction}
+              batchRegisterStudentService={batchRegisterStudentService}
+              isBatchRegistering={isBatchStudentServiceRegistering}
+              deleteEntity={deleteEntity}
+            />
+          )}
+
           {/* FALLBACK HUB */}
-          {![ 'dashboard', 'live-calendar', 'students', 'student-attendance', 'class-attendance', 'class-course', 'student-register', 'teacher-register', 'teachers', 'library', 'homework', 'report-card', 'payment', 'payment-assign', 'payment-history', 'late-payment', 'student-finance-status', 'programs', 'exam', 'security', 'subject' ].includes(currentPage) && (
+          {![ 'dashboard', 'live-calendar', 'students', 'parents', 'parent-detail', 'student-attendance', 'class-attendance', 'class-course', 'student-register', 'teacher-register', 'teachers', 'student-service', 'student-service-batch', 'library', 'homework', 'report-card', 'payment', 'payment-assign', 'payment-history', 'late-payment', 'student-finance-status', 'programs', 'exam', 'security', 'subject', 'notice', 'notice-detail' ].includes(currentPage) && (
             <div className="bg-white dark:bg-slate-900 p-6 sm:p-10 md:p-16 lg:p-24 rounded-[40px] sm:rounded-[72px] lg:rounded-[120px] text-center shadow-premium animate-in zoom-in-95 duration-500 border border-slate-100 dark:border-slate-800">
               <div className="w-24 h-24 sm:w-36 sm:h-36 lg:w-48 lg:h-48 bg-brand-500/10 text-brand-500 rounded-[32px] sm:rounded-[56px] lg:rounded-[80px] flex items-center justify-center mx-auto mb-8 sm:mb-12 lg:mb-16 text-4xl sm:text-6xl lg:text-8xl shadow-inner group-hover:rotate-12 transition-all"><i className="fas fa-microchip"></i></div>
               <h3 className="text-2xl sm:text-4xl lg:text-6xl font-black tracking-tighter capitalize">{currentPage.replace('-', ' ')} Hub</h3>

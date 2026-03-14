@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
+import GradingModal from './Modals/Grading';
 
 type AppClass = {
   id: string;
@@ -22,6 +23,11 @@ type ExamItem = {
   created_at: string;
 };
 
+type GradingStudent = {
+  id: string;
+  name: string;
+};
+
 type UserRole = 'teacher' | 'student';
 const EXAM_FILES_BUCKET = 'exam_files';
 const MAX_PDF_SIZE_BYTES = 20 * 1024 * 1024;
@@ -41,6 +47,16 @@ const guessFileNameFromUrl = (url: string, fallback = 'exam-question.pdf') => {
   } catch {
     return fallback;
   }
+};
+
+const isSchemaMissingError = (message?: string | null) => {
+  const text = String(message || '').toLowerCase();
+  return (
+    text.includes('does not exist')
+    || text.includes('schema cache')
+    || text.includes('column')
+    || text.includes('relation')
+  );
 };
 
 export default function ExamManagementPage() {
@@ -67,6 +83,13 @@ export default function ExamManagementPage() {
   const [originalFileUrl, setOriginalFileUrl] = useState<string | null>(null);
   const [shouldRemoveExistingFile, setShouldRemoveExistingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [selectedExamForGrading, setSelectedExamForGrading] = useState<ExamItem | null>(null);
+  const [gradingStudents, setGradingStudents] = useState<GradingStudent[]>([]);
+  const [grades, setGrades] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [savingNoteStudentId, setSavingNoteStudentId] = useState<string | null>(null);
+  const [isLoadingGrading, setIsLoadingGrading] = useState(false);
 
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -268,6 +291,102 @@ export default function ExamManagementPage() {
     }
   };
 
+  const loadStudentsForGrading = async (exam: ExamItem) => {
+    setIsLoadingGrading(true);
+
+    try {
+      let studentIds: string[] = [];
+
+      const classCourseStudentsRes = await supabase
+        .from('class_course_students')
+        .select('student_id')
+        .eq('class_course_id', exam.class_course_id)
+        .eq('class_id', exam.class_id);
+
+      if (!classCourseStudentsRes.error) {
+        studentIds = (classCourseStudentsRes.data || []).map((row: any) => String(row.student_id));
+      } else if (isSchemaMissingError(classCourseStudentsRes.error.message)) {
+        const fallbackRes = await supabase
+          .from('student_courses')
+          .select('student_id')
+          .eq('course_id', exam.class_course_id);
+
+        if (!fallbackRes.error) {
+          studentIds = (fallbackRes.data || []).map((row: any) => String(row.student_id));
+        }
+      } else {
+        throw classCourseStudentsRes.error;
+      }
+
+      studentIds = [...new Set(studentIds.filter(Boolean))];
+
+      if (studentIds.length > 0) {
+        const studentsRes = await supabase
+          .from('students')
+          .select('id, name')
+          .in('id', studentIds);
+
+        if (studentsRes.error) throw studentsRes.error;
+
+        setGradingStudents(
+          (studentsRes.data || []).map((row: any) => ({
+            id: String(row.id),
+            name: String(row.name || 'Student'),
+          }))
+        );
+      } else {
+        setGradingStudents([]);
+      }
+    } catch (loadStudentsError: any) {
+      setError(loadStudentsError?.message || 'Failed to load students for grading.');
+      setGradingStudents([]);
+    } finally {
+      setIsLoadingGrading(false);
+    }
+  };
+
+  const loadGradesForExam = async (examId: string) => {
+    try {
+      let result: any = await supabase
+        .from('exam_grades')
+        .select('student_id, grade, note')
+        .eq('exam_id', examId);
+
+      if (result.error && isSchemaMissingError(result.error.message)) {
+        result = await supabase
+          .from('exam_grades')
+          .select('student_id, grade')
+          .eq('exam_id', examId);
+      }
+
+      if (result.error) {
+        if (isSchemaMissingError(result.error.message)) {
+          setGrades({});
+          return;
+        }
+        throw result.error;
+      }
+
+      const nextGrades: Record<string, string> = {};
+      const nextNotes: Record<string, string> = {};
+      (result.data || []).forEach((row: any) => {
+        const studentId = String(row.student_id || '');
+        if (!studentId) return;
+        nextGrades[studentId] = String(row.grade || '');
+        if (typeof row.note === 'string') {
+          nextNotes[studentId] = row.note;
+        }
+      });
+
+      setGrades(nextGrades);
+      setNotes(nextNotes);
+    } catch (loadGradesError: any) {
+      setError(loadGradesError?.message || 'Failed to load grades.');
+      setGrades({});
+      setNotes({});
+    }
+  };
+
   const openCreateEditor = () => {
     setEditingExamId(null);
     setTitle('');
@@ -292,6 +411,100 @@ export default function ExamManagementPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
     setIsEditorOpen(true);
     setError(null);
+  };
+
+  const openGradingPage = (exam: ExamItem) => {
+    setSelectedExamForGrading(exam);
+    setGrades({});
+    setNotes({});
+    setGradingStudents([]);
+    void loadStudentsForGrading(exam);
+    void loadGradesForExam(exam.id);
+  };
+
+  const closeGradingPage = () => {
+    setSelectedExamForGrading(null);
+    setGradingStudents([]);
+    setGrades({});
+    setNotes({});
+  };
+
+  const handleGrade = async (studentId: string, grade: string) => {
+    if (!selectedExamForGrading) return;
+
+    setGrades(prev => ({ ...prev, [studentId]: grade }));
+
+    let result = await supabase
+      .from('exam_grades')
+      .upsert(
+        [{
+          exam_id: selectedExamForGrading.id,
+          student_id: studentId,
+          grade,
+          note: notes[studentId] || null,
+        }],
+        { onConflict: 'exam_id,student_id' }
+      );
+
+    if (result.error && isSchemaMissingError(result.error.message)) {
+      result = await supabase
+        .from('exam_grades')
+        .upsert(
+          [{ exam_id: selectedExamForGrading.id, student_id: studentId, grade }],
+          { onConflict: 'exam_id,student_id' }
+        );
+    }
+
+    if (result.error && !isSchemaMissingError(result.error.message)) {
+      setError(result.error.message || 'Failed to save grade.');
+    }
+  };
+
+  const handleNoteChange = (studentId: string, note: string) => {
+    setNotes(prev => ({ ...prev, [studentId]: note }));
+  };
+
+  const saveStudentNote = async (studentId: string) => {
+    if (!selectedExamForGrading) return;
+
+    const note = (notes[studentId] || '').trim();
+    const grade = grades[studentId];
+    if (!grade) {
+      setStatus('Select a grade before saving note.');
+      return;
+    }
+
+    setSavingNoteStudentId(studentId);
+
+    try {
+      let result = await supabase
+        .from('exam_grades')
+        .upsert(
+          [{
+            exam_id: selectedExamForGrading.id,
+            student_id: studentId,
+            grade,
+            note,
+          }],
+          { onConflict: 'exam_id,student_id' }
+        );
+
+      if (result.error && isSchemaMissingError(result.error.message)) {
+        result = await supabase
+          .from('exam_grades')
+          .upsert(
+            [{ exam_id: selectedExamForGrading.id, student_id: studentId, grade }],
+            { onConflict: 'exam_id,student_id' }
+          );
+      }
+
+      if (result.error) throw result.error;
+      setStatus('Comment saved successfully.');
+    } catch (saveNoteError: any) {
+      setError(saveNoteError?.message || 'Failed to save comment.');
+    } finally {
+      setSavingNoteStudentId(null);
+    }
   };
 
   const closeEditor = () => {
@@ -423,7 +636,7 @@ export default function ExamManagementPage() {
           <div>
             <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-brand-200">Evaluation Workspace</p>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter mt-2">Exam Management</h2>
-            <p className="text-slate-200 mt-3 text-sm sm:text-base">Select class and course from Supabase, then create and manage exams.</p>
+            <p className="text-slate-200 mt-3 text-sm sm:text-base">Select class and course from Supabase, then create, grade, and manage exams.</p>
           </div>
           <button
             onClick={() => setRole(role === 'teacher' ? 'student' : 'teacher')}
@@ -502,6 +715,25 @@ export default function ExamManagementPage() {
         </div>
       )}
 
+      {selectedExamForGrading ? (
+        <GradingModal
+          exam={{ id: selectedExamForGrading.id, title: selectedExamForGrading.title }}
+          className={classNameMap.get(selectedExamForGrading.class_id) || ''}
+          students={gradingStudents}
+          grades={grades}
+          notes={notes}
+          onBack={closeGradingPage}
+          onGrade={(studentId, grade) => {
+            void handleGrade(studentId, grade);
+          }}
+          onNoteChange={handleNoteChange}
+          onSaveNote={(studentId) => {
+            void saveStudentNote(studentId);
+          }}
+          savingNoteStudentId={savingNoteStudentId}
+          isLoading={isLoadingGrading}
+        />
+      ) : (
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
         {isLoadingExams ? (
           <div className="rounded-[32px] border border-slate-200 bg-white dark:bg-slate-900 px-6 py-8 text-sm font-semibold text-slate-500">
@@ -545,6 +777,12 @@ export default function ExamManagementPage() {
                 {role === 'teacher' ? (
                   <>
                     <button
+                      onClick={() => openGradingPage(exam)}
+                      className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-black uppercase tracking-widest"
+                    >
+                      Grade
+                    </button>
+                    <button
                       onClick={() => openEditEditor(exam)}
                       className="px-3 py-2 rounded-xl bg-brand-50 text-brand-700 text-xs font-black uppercase tracking-widest"
                     >
@@ -568,6 +806,7 @@ export default function ExamManagementPage() {
           ))
         )}
       </div>
+      )}
 
       {isEditorOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
@@ -675,6 +914,8 @@ export default function ExamManagementPage() {
           </div>
         </div>
       )}
+
+      
     </div>
   );
 }

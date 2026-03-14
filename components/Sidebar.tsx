@@ -80,17 +80,23 @@ const Sidebar: React.FC<SidebarProps> = ({
       >
         <SidebarMenuItem id="dashboard" icon="fa-house" label="Dashboard" activePage={currentPage} />
         <SidebarMenuItem id="live-calendar" icon="fa-calendar-days" label="Live Calendar" activePage={currentPage} />
-        <SidebarMenuItem icon="fa-user-group" label="Students" activePage={currentPage} hasDropdown>
+        <SidebarMenuItem icon="fa-user-group" label="Students / Parents" activePage={currentPage} hasDropdown>
             <SidebarSubItem id="students" label="Student Directory" activePage={currentPage} />
+          <SidebarSubItem id="parents" label="Parent Directory" activePage={currentPage} />
            <SidebarSubItem id="student-register" label="Registration Hub" activePage={currentPage} />
         </SidebarMenuItem>
-        <SidebarMenuItem id="student-attendance" icon="fa-calendar-check" label="Class Management" activePage={currentPage} />
         <SidebarMenuItem icon="fa-chalkboard-teacher" label="Teachers" activePage={currentPage} hasDropdown>
             <SidebarSubItem id="teachers" label="Teacher Directory" activePage={currentPage} />
             <SidebarSubItem id="teacher-register" label="Registration Hub" activePage={currentPage} />
         </SidebarMenuItem>
+        <SidebarMenuItem icon="fa-user-tie" label="Student Service" activePage={currentPage} hasDropdown>
+          <SidebarSubItem id="student-service" label="SS Directory" activePage={currentPage} />
+          <SidebarSubItem id="student-service-batch" label="Batch Registering" activePage={currentPage} />
+        </SidebarMenuItem>
+        <SidebarMenuItem id="student-attendance" icon="fa-calendar-check" label="Class Management" activePage={currentPage} />
         <SidebarMenuItem id="homework" icon="fa-book-open" label="Homework" activePage={currentPage} />
         <SidebarMenuItem id="report-card" icon="fa-file-lines" label="Report Card" activePage={currentPage} />
+        <SidebarMenuItem id="notice" icon="fa-bullhorn" label="Notice Board" activePage={currentPage} />
         <SidebarMenuItem icon="fa-money-bill-wave" label="Payment" activePage={currentPage} hasDropdown>
             <SidebarSubItem id="payment" label="Payment" activePage={currentPage} />
           <SidebarSubItem id="payment-assign" label="Assign Payment" activePage={currentPage} />

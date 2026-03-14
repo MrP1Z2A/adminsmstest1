@@ -28,6 +28,10 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = React.memo(({ stats }) => {
   const formatCompactMMK = (value: number) => {
     const abs = Math.abs(value || 0);
+    if (abs >= 1_000_000_000) {
+      const compact = (value / 1_000_000_000).toFixed(2).replace(/\.00$/, '');
+      return `${compact}B MMK`;
+    }
     if (abs >= 1_000_000) {
       const compact = (value / 1_000_000).toFixed(1).replace(/\.0$/, '');
       return `${compact}m MMK`;

@@ -47,7 +47,14 @@ const toIsoDate = (value: string | null | undefined) => {
   return parsed.toISOString().slice(0, 10);
 };
 
-const formatMMK = (value: number) => `${Math.round(value || 0).toLocaleString('en-US')} MMK`;
+const formatMMK = (value: number) => {
+  const amount = Number(value || 0);
+  if (Math.abs(amount) >= 1_000_000_000) {
+    const inBillions = amount / 1_000_000_000;
+    return `${inBillions.toFixed(2).replace(/\.00$/, '')}B MMK`;
+  }
+  return `${Math.round(amount).toLocaleString('en-US')} MMK`;
+};
 
 const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view }) => {
   const [students, setStudents] = useState<AppStudent[]>([]);
