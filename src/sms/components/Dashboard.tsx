@@ -233,7 +233,7 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ stats }) => {
                   <Cell fill={femaleColor} />
                   <Cell fill={femaleTrack} />
                 </Pie>
-                <Tooltip formatter={(value: number, name: string) => [value, name]} />
+                <Tooltip formatter={(value: any, name: any) => [value, name]} />
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -294,7 +294,7 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ stats }) => {
                   <Cell fill={femaleColor} />
                   <Cell fill={femaleTrack} />
                 </Pie>
-                <Tooltip formatter={(value: number, name: string) => [value, name]} />
+                <Tooltip formatter={(value: any, name: any) => [value, name]} />
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -340,7 +340,7 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ stats }) => {
                     axisLine={false}
                     tick={{ fill: '#64748b', fontSize: 12, fontWeight: 700 }}
                   />
-                  <Tooltip formatter={(value: number) => [`${value}%`, 'Average']} cursor={{ fill: 'rgba(99, 102, 241, 0.08)' }} />
+                  <Tooltip formatter={(value: any) => [`${value}%`, 'Average']} cursor={{ fill: 'rgba(99, 102, 241, 0.08)' }} />
                   <Bar dataKey="percentage" fill="#5b7be3" radius={[6, 6, 0, 0]} maxBarSize={44} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
