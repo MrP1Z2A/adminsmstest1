@@ -53,7 +53,7 @@ const ALLOWED_FILE_TYPES = new Set([
 ]);
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024;
-const MAX_FOLDER_FILE_SIZE = 50 * 1024 * 1024;
+const MAX_FOLDER_FILE_SIZE = 200 * 1024 * 1024;
 const COURSE_RESOURCES_BUCKET = 'resources';
 const FOLDER_MARKER_FILE = '__folder__.pdf';
 const isFolderMarker = (name: string) => name === '.keep' || name === FOLDER_MARKER_FILE;
@@ -623,7 +623,7 @@ export default function HomeworkManager({ schoolId }: { schoolId: string | undef
     const fileList = Array.from(files);
     const oversized = fileList.find(file => file.size > MAX_FOLDER_FILE_SIZE);
     if (oversized) {
-      setError(`File too large: ${oversized.name}. Max size is 50MB.`);
+      setError(`File too large: ${oversized.name}. Max size is 200MB.`);
       return;
     }
 
