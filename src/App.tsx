@@ -26,8 +26,12 @@ export default function Portal() {
     }
   }, [appMode]);
 
-  if (appMode === 'sms') return <SMSApp />;
-  if (appMode === 'lms') return <LMSApp />;
+  const handleSwitch = () => {
+    setAppMode('portal');
+  };
+
+  if (appMode === 'sms') return <SMSApp onSwitch={handleSwitch} />;
+  if (appMode === 'lms') return <LMSApp onSwitch={handleSwitch} />;
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white relative overflow-hidden">

@@ -118,7 +118,11 @@ const getInitialTeacherEnrollData = () => ({
   email: '',
 });
 
-const App: React.FC = () => {
+interface AppProps {
+  onSwitch?: () => void;
+}
+
+const App: React.FC<AppProps> = ({ onSwitch }) => {
   const [onboardingStatus, setOnboardingStatus] = useState<'loading' | 'needs-school' | 'ready'>('loading');
   const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
   const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
@@ -3224,6 +3228,7 @@ const App: React.FC = () => {
         setIsMobileMenuOpen={setIsMobileMenuOpen} 
         isCollapsed={isSidebarCollapsed}
         onCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        onSwitch={onSwitch}
       />
 
       <main className={`flex-1 transition-all duration-300 ${isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'} flex flex-col min-w-0`}>

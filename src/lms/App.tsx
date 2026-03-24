@@ -146,7 +146,11 @@ const getStoredViewedNoticeIds = () => {
   }
 };
 
-const App: React.FC = () => {
+interface AppProps {
+  onSwitch?: () => void;
+}
+
+const App: React.FC<AppProps> = ({ onSwitch }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(getStoredLoginState);
   const [user, setUser] = useState<User>(getStoredUser);
   const [courses, setCourses] = useState<Course[]>(INITIAL_COURSES);
@@ -1734,6 +1738,7 @@ const App: React.FC = () => {
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
         isCollapsed={isSidebarCollapsed}
         onCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        onSwitch={onSwitch}
       />
       <main className={`flex-1 transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-72'} p-6 md:p-8 overflow-x-hidden ${isSidebarOpen ? 'hidden md:block' : 'block'}`}>
         {currentView === 'dashboard' && renderDashboard()}

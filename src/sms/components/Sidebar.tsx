@@ -9,6 +9,7 @@ interface SidebarProps {
   setIsMobileMenuOpen: (open: boolean) => void;
   isCollapsed?: boolean;
   onCollapse?: () => void;
+  onSwitch?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -17,7 +18,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   isMobileMenuOpen, 
   setIsMobileMenuOpen,
   isCollapsed,
-  onCollapse
+  onCollapse,
+  onSwitch
 }) => {
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
   const navRef = useRef<HTMLElement | null>(null);
@@ -42,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             if (hasDropdown) setOpenDropdowns(prev => ({ ...prev, [label]: !prev[label] }));
             else if (id) { setCurrentPage(id); setIsMobileMenuOpen(false); }
           }}
-          className={`w-full flex items-center justify-between px-8 py-3.5 transition-all duration-300 group
+          className={`w-full flex items-center justify-between ${isCollapsed ? 'px-0' : 'px-8'} py-3.5 transition-all duration-300 group
             ${(isActive || (hasDropdown && isParentActive && !isOpen)) ? 'bg-brand-500/10 text-white border-r-4 border-brand-500' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
         >
           <div className={`flex items-center ${isCollapsed ? 'justify-center w-full' : 'gap-4'}`}>
@@ -119,6 +121,16 @@ const Sidebar: React.FC<SidebarProps> = ({
         </SidebarMenuItem>
         <SidebarMenuItem id="exam" icon="fa-clipboard-check" label="Exam Management" activePage={currentPage} />
         <SidebarMenuItem id="security" icon="fa-user-shield" label="Security Permission" activePage={currentPage} />
+        
+        <div className="mt-auto px-8 mb-8 space-y-4">
+          <button 
+            onClick={onSwitch}
+            className={`w-full flex items-center justify-center ${isCollapsed ? 'px-0' : 'gap-3 px-5'} py-3 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-brand-500 hover:bg-brand-500 hover:text-white transition-all duration-300 group`}
+          >
+            <i className="fas fa-rotate text-xs group-hover:rotate-180 transition-transform duration-500"></i>
+            {!isCollapsed && <span className="font-black text-[10px] uppercase tracking-[0.2em]">Switch Environment</span>}
+          </button>
+        </div>
       </nav>
     </aside>
   );

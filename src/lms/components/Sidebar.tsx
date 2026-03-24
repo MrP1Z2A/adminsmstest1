@@ -14,6 +14,7 @@ interface SidebarProps {
   onToggle?: () => void;
   isCollapsed?: boolean;
   onCollapse?: () => void;
+  onSwitch?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -26,7 +27,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   isOpen, 
   onToggle,
   isCollapsed,
-  onCollapse
+  onCollapse,
+  onSwitch
 }) => {
   const handleNavClick = (view: View) => {
     onViewChange(view);
@@ -87,7 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <button
                 key={item.id}
                 onClick={() => handleNavClick(item.id as View)}
-                className={`w-full flex items-center gap-4 px-5 py-3 rounded-2xl transition-all duration-300 group ${
+                className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-4 px-5'} py-3 rounded-2xl transition-all duration-300 group ${
                   isActive 
                     ? 'bg-[#4ea59d] text-white shadow-[0_8px_16px_-4px_rgba(78,165,157,0.5)] scale-[1.02]' 
                     : 'text-slate-300 hover:bg-[#1f4e4a] hover:text-[#4ea59d]'
@@ -127,6 +129,14 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
           
+          <button 
+            onClick={onSwitch}
+            className={`w-full flex items-center justify-center ${isCollapsed ? 'px-0' : 'gap-3 px-5'} py-3 rounded-2xl bg-[#4ea59d]/10 border border-[#4ea59d]/20 text-[#4ea59d] hover:bg-[#4ea59d] hover:text-white transition-all duration-300 group`}
+          >
+            <i className="fa-solid fa-rotate text-xs group-hover:rotate-180 transition-transform duration-500"></i>
+            {!isCollapsed && <span className="font-black text-[10px] uppercase tracking-[0.2em]">Switch Environment</span>}
+          </button>
+
           <button 
             onClick={onLogout}
             className={`w-full flex items-center justify-center ${isCollapsed ? 'px-0' : 'gap-3 px-5'} py-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all duration-300 group`}
