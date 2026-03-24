@@ -477,11 +477,11 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         const fileExt = submissionFile.name.split('.').pop();
         const fileName = `${user.studentId}/${selectedAssignment.id}_${Date.now()}.${fileExt}`;
         const { data, error: uploadError } = await supabase.storage
-          .from('homework-submissions')
+          .from('resources')
           .upload(fileName, submissionFile);
 
         if (uploadError) throw uploadError;
-        const { data: { publicUrl } } = supabase.storage.from('homework-submissions').getPublicUrl(fileName);
+        const { data: { publicUrl } } = supabase.storage.from('resources').getPublicUrl(fileName);
         submissionUrl = publicUrl;
       }
 
