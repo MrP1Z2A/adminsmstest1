@@ -46,9 +46,10 @@ const sanitizeFileName = (value: string) => value.replace(/[^a-zA-Z0-9._-]/g, '_
 
 interface NoticeBoardProps {
   onOpenNotice: (noticeId: string) => void;
+  schoolId: string | undefined;
 }
 
-export default function NoticeBoard({ onOpenNotice }: NoticeBoardProps) {
+export default function NoticeBoard({ onOpenNotice, schoolId }: NoticeBoardProps) {
   const [notices, setNotices] = useState<NoticeItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -83,12 +84,18 @@ export default function NoticeBoard({ onOpenNotice }: NoticeBoardProps) {
   }, [sortedNotices, filterDate, filterPriority]);
 
   const loadNotices = async () => {
+    if (!schoolId) {
+      setNotices([]);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
 
     const { data, error: loadError } = await supabase
       .from('notice_board')
       .select('id, title, message, notice_date, priority, file_path, file_name, created_at')
+      .eq('school_id', schoolId)
       .order('notice_date', { ascending: false })
       .order('created_at', { ascending: false });
 
@@ -118,7 +125,7 @@ export default function NoticeBoard({ onOpenNotice }: NoticeBoardProps) {
 
   useEffect(() => {
     void loadNotices();
-  }, []);
+  }, [schoolId]);
 
   const createNotice = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -179,6 +186,7 @@ export default function NoticeBoard({ onOpenNotice }: NoticeBoardProps) {
       priority,
       file_path: filePath,
       file_name: fileName,
+      school_id: schoolId
     };
 
     const { error: saveError } = await supabase

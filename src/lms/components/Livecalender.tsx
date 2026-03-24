@@ -34,7 +34,11 @@ const toMonthRange = (cursor: Date) => {
 
 const toTimeInputValue = (value: string) => (value || '').slice(0, 5);
 
-const LiveCalendar: React.FC = () => {
+interface LiveCalendarProps {
+  schoolId?: string;
+}
+
+const LiveCalendar: React.FC<LiveCalendarProps> = ({ schoolId }) => {
   const db = supabase;
   const [monthCursor, setMonthCursor] = React.useState(() => {
     const now = new Date();
@@ -58,6 +62,7 @@ const LiveCalendar: React.FC = () => {
       const { data, error } = await db
         .from('live_calendar_events')
         .select('id, title, event_date, start_time, end_time, class_id, class_name, course_id, course_name, notes')
+        .eq('school_id', schoolId)
         .gte('event_date', start)
         .lte('event_date', end)
         .order('event_date', { ascending: true })

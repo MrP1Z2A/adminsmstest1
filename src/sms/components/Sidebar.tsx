@@ -10,6 +10,7 @@ interface SidebarProps {
   isCollapsed?: boolean;
   onCollapse?: () => void;
   onSwitch?: () => void;
+  schoolName?: string;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -19,7 +20,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   setIsMobileMenuOpen,
   isCollapsed,
   onCollapse,
-  onSwitch
+  onSwitch,
+  schoolName
 }) => {
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
   const navRef = useRef<HTMLElement | null>(null);
@@ -75,7 +77,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="w-10 h-10 bg-brand-500 rounded-2xl flex items-center justify-center shadow-lg shadow-brand-500/30 overflow-hidden shrink-0">
           <img src={logoIem} alt="IEM" className="w-full h-full object-cover" />
         </div>
-        {!isCollapsed && <span className="text-xl font-black tracking-tighter">IEM</span>}
+        {!isCollapsed && <span className="text-xl font-black tracking-tighter truncate max-w-[150px]">{schoolName || 'IEM'}</span>}
       </div>
 
       <div className="hidden lg:flex justify-end px-4 mb-2">

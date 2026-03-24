@@ -27,6 +27,7 @@ interface DailyAttendancePageProps {
   classes?: LightweightClass[];
   subjects?: LightweightSubject[];
   notify?: (message: string) => void;
+  schoolId?: string;
 }
 
 const getTodayIsoDate = () => {
@@ -43,6 +44,7 @@ const DailyAttendancePage: React.FC<DailyAttendancePageProps> = ({
   classes = [],
   subjects = [],
   notify,
+  schoolId,
 }) => {
   if (!supabase) {
     return (
@@ -101,7 +103,8 @@ const DailyAttendancePage: React.FC<DailyAttendancePageProps> = ({
       .select('student_id, status')
       .eq('context_type', contextType)
       .eq('context_id', selectedContextId)
-      .eq('attendance_date', attendanceDate);
+      .eq('attendance_date', attendanceDate)
+      .eq('school_id', schoolId);
 
     if (error) {
       notify?.(`Failed to load attendance: ${error.message}`);
@@ -133,6 +136,7 @@ const DailyAttendancePage: React.FC<DailyAttendancePageProps> = ({
       attendance_date: attendanceDate,
       student_id: String(studentId),
       status,
+      school_id: schoolId,
     };
 
     const upsertResult = await db
@@ -163,6 +167,7 @@ const DailyAttendancePage: React.FC<DailyAttendancePageProps> = ({
       attendance_date: attendanceDate,
       student_id: String(student.id),
       status: 'P' as const,
+      school_id: schoolId,
     }));
 
     const upsertResult = await db

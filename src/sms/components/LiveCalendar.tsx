@@ -24,6 +24,7 @@ interface LiveCalendarEvent {
 interface LiveCalendarProps {
   classes: any[];
   notify: (msg: string) => void;
+  schoolId: string | undefined;
 }
 
 const toMonthRange = (cursor: Date) => {
@@ -39,7 +40,7 @@ const toMonthRange = (cursor: Date) => {
 
 const toTimeInputValue = (value: string) => (value || '').slice(0, 5);
 
-const LiveCalendar: React.FC<LiveCalendarProps> = ({ classes, notify }) => {
+const LiveCalendar: React.FC<LiveCalendarProps> = ({ classes, notify, schoolId }) => {
   const [monthCursor, setMonthCursor] = React.useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -66,12 +67,14 @@ const LiveCalendar: React.FC<LiveCalendarProps> = ({ classes, notify }) => {
   const monthLabel = monthCursor.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
   const loadMonthEvents = React.useCallback(async (targetMonth: Date) => {
+    if (!schoolId) return;
     const { start, end } = toMonthRange(targetMonth);
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('live_calendar_events')
         .select('id, title, event_date, start_time, end_time, class_id, class_name, course_id, course_name, notes')
+        .eq('school_id', schoolId)
         .gte('event_date', start)
         .lte('event_date', end)
         .order('event_date', { ascending: true })
@@ -97,7 +100,7 @@ const LiveCalendar: React.FC<LiveCalendarProps> = ({ classes, notify }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [notify]);
+  }, [notify, schoolId]);
 
   React.useEffect(() => {
     void loadMonthEvents(monthCursor);
@@ -118,7 +121,7 @@ const LiveCalendar: React.FC<LiveCalendarProps> = ({ classes, notify }) => {
 
   React.useEffect(() => {
     const loadClassCourses = async () => {
-      if (!formData.class_id) {
+      if (!formData.class_id || !schoolId) {
         setClassCourses([]);
         return;
       }
@@ -129,6 +132,7 @@ const LiveCalendar: React.FC<LiveCalendarProps> = ({ classes, notify }) => {
           .from('class_courses')
           .select('id, name, class_id')
           .eq('class_id', formData.class_id)
+          .eq('school_id', schoolId)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -147,7 +151,7 @@ const LiveCalendar: React.FC<LiveCalendarProps> = ({ classes, notify }) => {
     };
 
     void loadClassCourses();
-  }, [formData.class_id, notify]);
+  }, [formData.class_id, notify, schoolId]);
 
   const eventsByDate = React.useMemo(() => {
     return events.reduce<Record<string, LiveCalendarEvent[]>>((acc, event) => {
@@ -234,6 +238,7 @@ const LiveCalendar: React.FC<LiveCalendarProps> = ({ classes, notify }) => {
       course_id: formData.course_id || null,
       course_name: selectedCourse?.name || null,
       notes: formData.notes.trim() ? formData.notes.trim() : null,
+      school_id: schoolId
     };
 
     setIsSubmitting(true);

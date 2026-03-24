@@ -38,6 +38,7 @@ type AppCourse = {
 
 type PaymentFinanceHubProps = {
   view: FinanceView;
+  schoolId: string | undefined;
 };
 
 const getTodayIso = () => new Date().toISOString().slice(0, 10);
@@ -109,7 +110,7 @@ const amountToWords = (value: number) => {
   return `${words.join(' ')} Kyats`;
 };
 
-const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view }) => {
+const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId }) => {
   const [students, setStudents] = useState<AppStudent[]>([]);
   const [payments, setPayments] = useState<StudentPayment[]>([]);
   const [studentCourseLinks, setStudentCourseLinks] = useState<StudentCourseLink[]>([]);
@@ -255,20 +256,25 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view }) => {
         supabase
           .from('students')
           .select('id, name, email')
+          .eq('school_id', schoolId)
           .order('created_at', { ascending: false }),
         supabase
           .from('student_payments')
           .select('*')
+          .eq('school_id', schoolId)
           .order('created_at', { ascending: false }),
         supabase
           .from('classes')
-          .select('id, name'),
+          .select('id, name')
+          .eq('school_id', schoolId),
         supabase
           .from('class_courses')
-          .select('id, name, class_id'),
+          .select('id, name, class_id')
+          .eq('school_id', schoolId),
         supabase
           .from('class_course_students')
           .select('student_id, class_id, class_course_id, created_at')
+          .eq('school_id', schoolId)
           .order('created_at', { ascending: true }),
       ]);
 
@@ -338,7 +344,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view }) => {
 
   useEffect(() => {
     void loadData();
-  }, []);
+  }, [schoolId]);
 
   const isLate = (payment: StudentPayment) => {
     if (!payment.due_date) return false;
@@ -491,7 +497,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view }) => {
         note: assignNote.trim() || null,
       }));
 
-      const insertResult = await supabase.from('student_payments').insert(withSchoolIdRows(rows, schoolId));
+      const insertResult = await supabase.from('student_payments').insert(rows.map(r => ({ ...r, school_id: schoolId })));
       if (insertResult.error) throw insertResult.error;
 
       setStatus(`Assigned pending dues to ${selectedStudentIds.length} student(s).`);
@@ -535,7 +541,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view }) => {
         note: formData.note.trim() || null,
       }, schoolId);
 
-      const insertResult = await supabase.from('student_payments').insert([payload]);
+      const insertResult = await supabase.from('student_payments').insert([{ ...payload, school_id: schoolId }]);
       if (insertResult.error) throw insertResult.error;
 
       setStatus('Payment saved.');

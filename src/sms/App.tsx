@@ -31,6 +31,7 @@ import EnrollmentModal from './components/Modals/EnrollmentModal';
 import TeacherEnrollmentModal from './components/Modals/TeacherEnrollmentModal';
 import EditModal from './components/Modals/EditModal';
 import PermissionsModal from './components/Modals/PermissionsModal';
+import { buildParentEntries } from './components/parentDirectoryUtils';
 import logoIem from './src/LOGO_IEM.png';
 
 const DEFAULT_AVATAR = logoIem;
@@ -120,9 +121,12 @@ const getInitialTeacherEnrollData = () => ({
 
 interface AppProps {
   onSwitch?: () => void;
+  schoolId?: string;
+  schoolName?: string;
+  onSchoolIdChange?: (newId: string | undefined, newName?: string) => void;
 }
 
-const App: React.FC<AppProps> = ({ onSwitch }) => {
+const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdChange }) => {
   const [onboardingStatus, setOnboardingStatus] = useState<'loading' | 'needs-school' | 'ready'>('loading');
   const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
   const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
@@ -159,6 +163,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
   // Filters
   const [selectedDate, setSelectedDate] = useState('');
   const [classes, setClasses] = useState<any[]>([]);
+  // const [schoolId, setSchoolId] = useState<string>(''); // Removed in favor of prop schoolId
   const [allStudents, setAllStudents] = useState<any[]>([]);
   const [className, setClassName] = useState('');
   const [classImage, setClassImage] = useState<File | null>(null);
@@ -212,7 +217,10 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
   const stats = useMemo(() => {
     const totalStudents = allStudents.length || students.length;
     const totalTeachers = teachers.length;
-    const totalParents = parents.length;
+    
+    // Calculate parents from student records for dashboard consistency
+    const totalParents = buildParentEntries(allStudents.length > 0 ? allStudents : students).length;
+    
     const totalStudentServices = studentServiceStaff.length;
     const maleStudents = students.filter(student => student.gender === 'Male').length;
     const femaleStudents = students.filter(student => student.gender === 'Female').length;
@@ -244,17 +252,19 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
   const handleLogout = useCallback(async () => {
     try {
       await authService.signOut();
+      if (onSchoolIdChange) onSchoolIdChange(undefined);
       setOnboardingStatus('needs-school');
       notify('Logged out successfully.');
     } catch (error: any) {
       notify(error?.message || 'Failed to log out.');
     }
-  }, [notify]);
+  }, [notify, onSchoolIdChange]);
 
   const requireSchoolId = useCallback(async () => {
+    if (schoolId) return schoolId;
     const tenant = await getCurrentTenantContext();
     return tenant.schoolId;
-  }, []);
+  }, [schoolId]);
 
   // Check onboarding status on mount
   useEffect(() => {
@@ -281,7 +291,12 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
           profile = data;
           profileError = error;
 
-          if (!error && data) break;
+          if (!error && data) {
+            if (data.school_id && data.school_id !== schoolId && onSchoolIdChange) {
+              onSchoolIdChange(String(data.school_id));
+            }
+            break;
+          }
           
           attempts++;
           if (attempts < maxAttempts) {
@@ -319,6 +334,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
 
   const fetchStudentsByDate = async (date: string) => {
     if (!date) return;
+    const schoolId = await requireSchoolId();
 
     const start = new Date(date);
     start.setHours(0, 0, 0, 0);
@@ -330,6 +346,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
       .schema('public')
       .from('students')
       .select('*')
+      .eq('school_id', schoolId)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -338,10 +355,12 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
   };
 
   const fetchAllStudents = async () => {
+    const schoolId = await requireSchoolId();
     const { data, error } = await supabase
       .schema('public')
       .from('students')
-      .select('*');
+      .select('*')
+      .eq('school_id', schoolId);
 
     if (!error && data) {
       setAllStudents(data);
@@ -349,10 +368,12 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
   };
 
   const fetchTeachers = async () => {
+    const schoolId = await requireSchoolId();
     const orderedResult = await supabase
       .schema('public')
       .from('teachers')
       .select('*')
+      .eq('school_id', schoolId)
       .order('created_at', { ascending: false });
 
     if (!orderedResult.error && Array.isArray(orderedResult.data)) {
@@ -363,7 +384,8 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
     const fallbackResult = await supabase
       .schema('public')
       .from('teachers')
-      .select('*');
+      .select('*')
+      .eq('school_id', schoolId);
 
     if (!fallbackResult.error && Array.isArray(fallbackResult.data)) {
       setTeachers(fallbackResult.data.map((teacher: any) => mapStudentFromDB({ ...teacher, role: 'teacher' })));
@@ -378,9 +400,11 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
   };
 
   const fetchParents = async () => {
+    const schoolId = await requireSchoolId();
     const { data, error } = await supabase
       .from('parents')
       .select('*')
+      .eq('school_id', schoolId)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -391,7 +415,8 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
     if (error && /created_at|column|schema cache|does not exist/i.test(error.message || '')) {
       const fallbackResult = await supabase
         .from('parents')
-        .select('*');
+        .select('*')
+        .eq('school_id', schoolId);
 
       if (!fallbackResult.error && fallbackResult.data) {
         setParents(fallbackResult.data);
@@ -400,10 +425,12 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
   };
 
   const fetchStudentServiceStaff = async () => {
+    const schoolId = await requireSchoolId();
     const orderedResult = await supabase
       .schema('public')
       .from('student_services')
       .select('*')
+      .eq('school_id', schoolId)
       .order('created_at', { ascending: false });
 
     if (!orderedResult.error && Array.isArray(orderedResult.data)) {
@@ -414,7 +441,8 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
     const fallbackResult = await supabase
       .schema('public')
       .from('student_services')
-      .select('*');
+      .select('*')
+      .eq('school_id', schoolId);
 
     if (!fallbackResult.error && Array.isArray(fallbackResult.data)) {
       setStudentServiceStaff(fallbackResult.data.map((staff: any) => mapStudentFromDB({ ...staff, role: 'student_service' })));
@@ -425,9 +453,11 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
   };
 
   const fetchTotalEarnings = async () => {
+    const schoolId = await requireSchoolId();
     const { data, error } = await supabase
       .from('student_payments')
-      .select('amount_mmk, status');
+      .select('amount_mmk, status')
+      .eq('school_id', schoolId);
 
     if (error) {
       setTotalEarningMMK(0);
@@ -444,9 +474,11 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
   };
 
   const fetchClasses = async () => {
+    const schoolId = await requireSchoolId();
     const { data, error } = await supabase
       .from('classes')
       .select('*, class_course_students(student_id)')
+      .eq('school_id', schoolId)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -540,9 +572,10 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
 
       const nextClassCode = buildNextClassCode(className);
 
+      const schoolId = await requireSchoolId();
       const insertPayload = isClassCodeSupported
-        ? { name: className, image_url: imageUrl, color: classOuterColor, class_code: nextClassCode }
-        : { name: className, image_url: imageUrl, color: classOuterColor };
+        ? { name: className, image_url: imageUrl, color: classOuterColor, class_code: nextClassCode, school_id: schoolId }
+        : { name: className, image_url: imageUrl, color: classOuterColor, school_id: schoolId };
 
       let classData: any = null;
       let classError: any = null;
@@ -561,7 +594,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         setIsClassCodeSupported(false);
         const fallbackResult = await supabase
           .from('classes')
-          .insert([{ name: className, image_url: imageUrl, color: classOuterColor }])
+          .insert([{ name: className, image_url: imageUrl, color: classOuterColor, school_id: schoolId }])
           .select()
           .maybeSingle();
         classData = fallbackResult.data;
@@ -613,9 +646,10 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         imageUrl = await uploadClassImage(classImage);
       }
 
+      const schoolId = await requireSchoolId();
       const updatePayload = isClassCodeSupported
-        ? { name: className, image_url: imageUrl, color: classOuterColor, class_code: classCode }
-        : { name: className, image_url: imageUrl, color: classOuterColor };
+        ? { name: className, image_url: imageUrl, color: classOuterColor, class_code: classCode, school_id: schoolId }
+        : { name: className, image_url: imageUrl, color: classOuterColor, school_id: schoolId };
 
       let error: any = null;
 
@@ -631,7 +665,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         setIsClassCodeSupported(false);
         const fallbackResult = await supabase
           .from('classes')
-          .update({ name: className, image_url: imageUrl, color: classOuterColor })
+          .update({ name: className, image_url: imageUrl, color: classOuterColor, school_id: schoolId })
           .eq('id', editingClassId);
         error = fallbackResult.error;
       }
@@ -953,22 +987,28 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
       return;
     }
 
+    const schoolId = await requireSchoolId();
+
     // Check which students are ALREADY in this specific course
     const { data: existingCourseStudents } = await supabase
       .from('class_course_students')
       .select('student_id')
-      .eq('class_course_id', classCourseId);
+      .eq('class_course_id', classCourseId)
+      .eq('school_id', schoolId);
 
     const studentsInCourse = new Set((existingCourseStudents || []).map(r => String(r.student_id)));
     
     const idsToInsertToCourse = uniqueIncomingIds.filter(id => !studentsInCourse.has(id));
+    const alreadyEnrolledCount = uniqueIncomingIds.length - idsToInsertToCourse.length;
 
     if (!idsToInsertToCourse.length) {
-      notify('All selected students are already in this specific course.');
+      notify(`All ${uniqueIncomingIds.length} selected students are already enrolled in this course.`);
       return;
     }
 
-    const schoolId = await requireSchoolId();
+    if (alreadyEnrolledCount > 0) {
+      notify(`Skipped ${alreadyEnrolledCount} student(s) already in this course. Proceeding with ${idsToInsertToCourse.length} new enrollment(s).`);
+    }
 
     const idsToInsertToClass = idsToInsertToCourse.filter(id => !existingClassIds.includes(id));
 
@@ -1099,9 +1139,11 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
     const end = new Date(date);
     end.setHours(23, 59, 59, 999);
 
+    const schoolId = await requireSchoolId();
     const { data, error } = await supabase
       .from('students')
       .select('*')
+      .eq('school_id', schoolId)
       .gte('created_at', start.toISOString())
       .lte('created_at', end.toISOString())
       .order('created_at', { ascending: false });
@@ -1118,10 +1160,12 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         return;
       }
 
+      const schoolId = await requireSchoolId();
       const { data, error } = await supabase
         .schema('public')
         .from('students')
         .select('*')
+        .eq('school_id', schoolId)
         .order('created_at', { ascending: false });
 
       if (!error && data) {
@@ -1134,10 +1178,12 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
 
   useEffect(() => {
     const fetchStudents = async () => {
+      const schoolId = await requireSchoolId();
       const { data, error } = await supabase
         .schema('public')
         .from('students')
         .select('*')
+        .eq('school_id', schoolId)
         .order('created_at', { ascending: false });
 
       if (!error && data) {
@@ -1594,16 +1640,19 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
   const updateStudentProfilePhoto = async (studentId: string, file: File): Promise<Student> => {
     const profileImageUrl = await uploadStudentProfileImage(file);
 
+    const schoolId = await requireSchoolId();
     const { error: studentUpdateError } = await supabase
       .from('students')
       .update({ avatar: profileImageUrl })
-      .eq('id', studentId);
+      .eq('id', studentId)
+      .eq('school_id', schoolId);
 
     if (studentUpdateError) {
       const { error: teacherUpdateError } = await supabase
         .from('teachers')
         .update({ avatar: profileImageUrl })
-        .eq('id', studentId);
+        .eq('id', studentId)
+        .eq('school_id', schoolId);
 
       if (teacherUpdateError) {
         throw studentUpdateError;
@@ -1669,7 +1718,8 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
           case 'homework': setHomeworks(prev => prev.filter(h => h.id !== id)); break;
           case 'program': setPrograms(prev => prev.filter(p => p.id !== id)); break;
           case 'student-service': {
-            void supabase.schema('public').from('student_services').delete().eq('id', id);
+            const schoolId = await requireSchoolId();
+            void supabase.schema('public').from('student_services').delete().eq('id', id).eq('school_id', schoolId);
             setStudentServiceStaff(prev => prev.filter(s => s.id !== id));
             break;
           }
@@ -1718,10 +1768,12 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
       }
 
       if (studentDeleteDialog.entityType === 'student') {
+        const schoolId = await requireSchoolId();
         const { error: classRelationDeleteError } = await supabase
           .from('class_course_students')
           .delete()
-          .eq('student_id', studentDeleteDialog.id);
+          .eq('student_id', studentDeleteDialog.id)
+          .eq('school_id', schoolId);
 
         if (classRelationDeleteError && !isCourseAssignmentSchemaMissing(classRelationDeleteError.message)) {
           console.error('Class relation delete error:', classRelationDeleteError);
@@ -1732,7 +1784,8 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         const { error: attendanceDeleteError } = await supabase
           .from('attendance_records')
           .delete()
-          .eq('student_id', studentDeleteDialog.id);
+          .eq('student_id', studentDeleteDialog.id)
+          .eq('school_id', schoolId);
 
         if (attendanceDeleteError) {
           console.error('Attendance delete error:', attendanceDeleteError);
@@ -1741,10 +1794,12 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         }
       }
 
+      const schoolId = await requireSchoolId();
       const { error: deleteError } = await supabase
         .from(studentDeleteDialog.entityType === 'teacher' ? 'teachers' : 'students')
         .delete()
-        .eq('id', studentDeleteDialog.id);
+        .eq('id', studentDeleteDialog.id)
+        .eq('school_id', schoolId);
       if (deleteError) {
         console.error('Supabase Delete Error:', deleteError);
         setStudentDeleteError('Failed to delete student.');
@@ -1808,10 +1863,12 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         return;
       }
 
+      const schoolId = await requireSchoolId();
       const { error: relationDeleteError } = await supabase
         .from('class_course_students')
         .delete()
-        .eq('class_id', classDeleteDialog.id);
+        .eq('class_id', classDeleteDialog.id)
+        .eq('school_id', schoolId);
       if (relationDeleteError && !isCourseAssignmentSchemaMissing(relationDeleteError.message)) {
         console.error('Delete class relations error:', relationDeleteError);
         setClassDeleteError('Failed to delete class students relations.');
@@ -1822,6 +1879,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         .from('classes')
         .delete()
         .eq('id', classDeleteDialog.id)
+        .eq('school_id', schoolId)
         .select('id');
       if (classDeleteErrorResult) {
         console.error('Delete class error:', classDeleteErrorResult);
@@ -1838,6 +1896,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         .from('classes')
         .select('id')
         .eq('id', classDeleteDialog.id)
+        .eq('school_id', schoolId)
         .limit(1);
 
       if (verifyError) {
@@ -1915,10 +1974,12 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
       }
 
       setIsEnrollClassCoursesLoading(true);
+      const schoolId = await requireSchoolId();
       const { data, error } = await supabase
         .from('class_courses')
         .select('id, name, class_id')
         .in('class_id', enrollData.selectedClassIds)
+        .eq('school_id', schoolId)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -1976,7 +2037,8 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         const { error: dbError } = await supabase
           .from('students')
           .update({ type: 'Old', status: Status.ACTIVE, role: 'student', school_id: schoolId })
-          .eq('id', updatedStudent.id);
+          .eq('id', updatedStudent.id)
+          .eq('school_id', schoolId);
 
         if (dbError) throw dbError;
 
@@ -2163,7 +2225,8 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
 
       if (isEnrollmentAborted()) {
         if (createdStudentRecord?.id) {
-          await supabase.from('students').delete().eq('id', createdStudentRecord.id);
+          const schoolId = await requireSchoolId();
+          await supabase.from('students').delete().eq('id', createdStudentRecord.id).eq('school_id', schoolId);
         }
         return;
       }
@@ -3229,6 +3292,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         isCollapsed={isSidebarCollapsed}
         onCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         onSwitch={onSwitch}
+        schoolName={schoolName}
       />
 
       <main className={`flex-1 transition-all duration-300 ${isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'} flex flex-col min-w-0`}>
@@ -3252,11 +3316,12 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         <div className="p-4 sm:p-6 lg:p-10 xl:p-12 space-y-8 sm:space-y-10 lg:space-y-12 max-w-[1800px] w-full mx-auto overflow-hidden">
           
           {/* DASHBOARD */}
-          {currentPage === 'dashboard' && <Dashboard stats={stats} />}
+          {currentPage === 'dashboard' && <Dashboard stats={stats} schoolId={schoolId} />}
 
           {currentPage === 'live-calendar' && (
             <LiveCalendar
               classes={classes}
+              schoolId={schoolId}
               notify={notify}
             />
           )}
@@ -3268,6 +3333,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
               selectLabel="Student Select"
               students={students}
               classes={classes}
+              schoolId={schoolId}
               selectedDate={selectedDate}
               setSelectedDate={setSelectedDate}
               bulkAssignStudentsToClass={bulkAssignStudentsToClass}
@@ -3306,6 +3372,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
           {currentPage === 'student-register' && (
             <RegistrationHub 
               students={students}
+              schoolId={schoolId}
               enrollStudentAction={enrollStudentAction}
               batchRegisterStudents={batchRegisterStudents}
               isBatchRegistering={isBatchRegistering}
@@ -3316,6 +3383,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
           {currentPage === 'teacher-register' && (
             <TeacherRegistrationHub
               teachers={teachers}
+              schoolId={schoolId}
               enrollTeacherAction={enrollTeacherAction}
               batchRegisterTeachers={batchRegisterTeachers}
               isBatchRegistering={isBatchTeacherRegistering}
@@ -3331,6 +3399,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
               attendanceDate={attendanceDate}
               setAttendanceDate={setAttendanceDate}
               classes={classes}
+              schoolId={schoolId}
               allStudents={allStudents}
               className={className}
               setClassName={setClassName}
@@ -3367,6 +3436,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
 
           {currentPage === 'class-attendance' && (
             <AttendanceProtocol
+              schoolId={schoolId}
               students={attendanceStudents}
               subjects={subjects}
               attendanceDate={attendanceDate}
@@ -3433,6 +3503,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
                 attendanceDate={attendanceDate}
                 setAttendanceDate={setAttendanceDate}
                 classes={classes}
+                schoolId={schoolId}
                 allStudents={allStudents}
                 className={className}
                 setClassName={setClassName}
@@ -3474,11 +3545,12 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
 
           {/* EXAM PAGE - WITH CRUD */}
           {currentPage === 'exam' && (
-            <ExamManagementPage />
+            <ExamManagementPage schoolId={schoolId} />
           )}
 
           {currentPage === 'notice' && (
             <NoticeBoard
+              schoolId={schoolId}
               onOpenNotice={(noticeId) => {
                 setSelectedNoticeId(noticeId);
                 setCurrentPage('notice-detail');
@@ -3528,7 +3600,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
 
           {/* HOMEWORK PAGE - WITH CRUD */}
           {currentPage === 'homework' && (
-            <HomeworkManager />
+            <HomeworkManager schoolId={schoolId} />
           )}
 
           {currentPage === 'report-card' && (
@@ -3536,19 +3608,19 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
           )}
 
           {currentPage === 'payment' && (
-            <PaymentFinanceHub view="payment" />
+            <PaymentFinanceHub schoolId={schoolId} view="payment" />
           )}
 
           {currentPage === 'payment-assign' && (
-            <PaymentFinanceHub view="payment-assign" />
+            <PaymentFinanceHub schoolId={schoolId} view="payment-assign" />
           )}
 
           {currentPage === 'payment-history' && (
-            <PaymentFinanceHub view="payment-history" />
+            <PaymentFinanceHub schoolId={schoolId} view="payment-history" />
           )}
 
           {currentPage === 'student-finance-status' && (
-            <PaymentFinanceHub view="student-finance-status" />
+            <PaymentFinanceHub schoolId={schoolId} view="student-finance-status" />
           )}
 
           {/* PROGRAMS PAGE - WITH CRUD */}
@@ -3582,6 +3654,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
             <StudentDirectory
               title="Teacher Directory"
               selectLabel="Teacher Select"
+              schoolId={schoolId}
               namePrefix="(T) "
               students={teachers}
               classes={classes}
@@ -3603,6 +3676,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
             <StudentDirectory
               title="Student Service Directory"
               selectLabel="Staff Select"
+              schoolId={schoolId}
               namePrefix="(SS) "
               students={studentServiceStaff}
               classes={classes}

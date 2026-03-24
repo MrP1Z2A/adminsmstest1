@@ -7,6 +7,7 @@ interface TeacherRegistrationHubProps {
   batchRegisterTeachers: (file: File) => Promise<void>;
   isBatchRegistering: boolean;
   deleteEntity: (id: string, type: string) => void;
+  schoolId: string | undefined;
 }
 
 const TeacherRegistrationHub: React.FC<TeacherRegistrationHubProps> = ({
@@ -15,6 +16,7 @@ const TeacherRegistrationHub: React.FC<TeacherRegistrationHubProps> = ({
   batchRegisterTeachers,
   isBatchRegistering,
   deleteEntity,
+  schoolId,
 }) => {
   const batchFileInputRef = React.useRef<HTMLInputElement | null>(null);
 

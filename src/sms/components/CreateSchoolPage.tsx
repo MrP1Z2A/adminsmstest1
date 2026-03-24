@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 
 interface CreateSchoolPageProps {
-  onCreated: () => void;
+  onCreated: (schoolId: string) => void;
 }
 
 const slugify = (text: string) =>
@@ -28,6 +28,7 @@ const CreateSchoolPage: React.FC<CreateSchoolPageProps> = ({ onCreated }) => {
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resolvedSchoolId, setResolvedSchoolId] = useState<string | null>(null);
 
   const handleNameChange = (value: string) => {
     setName(value);
@@ -115,6 +116,7 @@ const CreateSchoolPage: React.FC<CreateSchoolPageProps> = ({ onCreated }) => {
           throw new Error('School not found. Ask the administrator to create it in Supabase first.');
         }
 
+        setResolvedSchoolId(school.school_id);
         setAccessMode(school.password_set ? 'enter-password' : 'set-password');
         setPassword('');
         return;
@@ -139,7 +141,12 @@ const CreateSchoolPage: React.FC<CreateSchoolPageProps> = ({ onCreated }) => {
         throw new Error(accessError.message || 'Failed to access the school.');
       }
 
-      onCreated();
+      if (resolvedSchoolId) {
+        onCreated(resolvedSchoolId);
+      } else {
+        // Fallback: try to resolve again if needed, but lookup should have it
+        onCreated(''); 
+      }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
     } finally {

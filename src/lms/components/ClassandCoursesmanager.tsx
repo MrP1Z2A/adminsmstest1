@@ -254,54 +254,9 @@ const COURSES: React.FC<CoursesProps> = ({ schoolId, students = [], allStudents,
   }, [schoolId]);
 
   React.useEffect(() => {
-    if (resolvedSchoolId) return;
-
-    let cancelled = false;
-
-    const resolveSchoolId = async () => {
-      if (typeof window === 'undefined') return;
-
-      let storedEmail = '';
-
-      try {
-        const raw = window.localStorage.getItem(USER_STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as { email?: string; schoolId?: string; school_id?: string };
-          const localSchoolId = String(parsed.schoolId || parsed.school_id || '').trim();
-          if (localSchoolId) {
-            if (!cancelled) setResolvedSchoolId(localSchoolId);
-            return;
-          }
-          storedEmail = String(parsed.email || '').trim();
-        }
-      } catch {
-        storedEmail = '';
-      }
-
-      if (!storedEmail) return;
-
-      const { data, error } = await supabase
-        .from('students')
-        .select('school_id')
-        .or(`email.eq.${storedEmail},name.eq.${storedEmail}`)
-        .maybeSingle();
-
-      if (error) return;
-
-      const dbSchoolId = String(data?.school_id || '').trim();
-      if (!dbSchoolId) return;
-
-      if (!cancelled) {
-        setResolvedSchoolId(dbSchoolId);
-      }
-    };
-
-    void resolveSchoolId();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [resolvedSchoolId]);
+    // If schoolId is passed as prop, it is the source of truth.
+    // If not, we don't try to resolve it here anymore to keep it consistent with the Portal's state.
+  }, [schoolId]);
 
   const uploadImage = React.useCallback(async (bucket: string, file: File, prefix: string) => {
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -477,7 +432,7 @@ const COURSES: React.FC<CoursesProps> = ({ schoolId, students = [], allStudents,
         };
         if (imageUrl) payload.image_url = imageUrl;
 
-        const { error } = await supabase.from('classes').update(payload).eq('id', editingClassId);
+        const { error } = await supabase.from('classes').update(payload).eq('id', editingClassId).eq('school_id', resolvedSchoolId);
         if (error) throw error;
 
         safeNotify('Class updated.');
@@ -514,7 +469,7 @@ const COURSES: React.FC<CoursesProps> = ({ schoolId, students = [], allStudents,
   };
 
   const deleteClass = async (classId: string) => {
-    const { error } = await supabase.from('classes').delete().eq('id', classId);
+    const { error } = await supabase.from('classes').delete().eq('id', classId).eq('school_id', resolvedSchoolId);
     if (error) {
       safeNotify(`Delete failed: ${error.message}`);
       return;
@@ -749,7 +704,8 @@ const COURSES: React.FC<CoursesProps> = ({ schoolId, students = [], allStudents,
       const { error } = await supabase
         .from('class_courses')
         .update({ name: editCourseName.trim(), image_url: imageUrl })
-        .eq('id', editCourseId);
+        .eq('id', editCourseId)
+        .eq('school_id', resolvedSchoolId);
 
       if (error) throw error;
 
@@ -765,7 +721,7 @@ const COURSES: React.FC<CoursesProps> = ({ schoolId, students = [], allStudents,
 
   const deleteClassCourse = async (course: CourseRow) => {
     setDeletingCourseId(course.id);
-    const { error } = await supabase.from('class_courses').delete().eq('id', course.id);
+    const { error } = await supabase.from('class_courses').delete().eq('id', course.id).eq('school_id', resolvedSchoolId);
     setDeletingCourseId(null);
 
     if (error) {
@@ -867,7 +823,8 @@ const COURSES: React.FC<CoursesProps> = ({ schoolId, students = [], allStudents,
       const { data, error } = await supabase
         .from('resources_buckets')
         .select('*')
-        .eq('class_course_id', selectedCourseForPage.id);
+        .eq('class_course_id', selectedCourseForPage.id)
+        .eq('school_id', schoolId);
       setIsResourcesLoading(false);
 
       if (!error && data) {

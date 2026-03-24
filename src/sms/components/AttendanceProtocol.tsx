@@ -15,6 +15,7 @@ interface AttendanceProtocolProps {
   attendanceDate: string;
   setAttendanceDate: (date: string) => void;
   classes: any[];
+  schoolId: string | undefined;
   allStudents: any[];
   className: string;
   setClassName: (name: string) => void;
@@ -87,6 +88,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
   focusCourse = null,
   openClassAttendancePage,
   onExitClassAttendancePage,
+  schoolId,
 }) => {
   const TIMETABLE_BUCKET = 'class_timetable';
   const COURSE_PROFILE_BUCKET = 'course_profile';
@@ -287,7 +289,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
 
   React.useEffect(() => {
     const loadCourseStudents = async () => {
-      if (!courseAttendanceOnly || !focusCourse?.id || !activeClassId) {
+      if (!courseAttendanceOnly || !focusCourse?.id || !activeClassId || !schoolId) {
         setCourseStudentIds([]);
         return;
       }
@@ -297,7 +299,8 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
           .from('class_course_students')
           .select('student_id')
           .eq('class_id', activeClassId)
-          .eq('class_course_id', String(focusCourse.id));
+          .eq('class_course_id', String(focusCourse.id))
+          .eq('school_id', schoolId);
 
         if (!primary.error) {
           setCourseStudentIds(
@@ -313,7 +316,8 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
         const fallback = await supabase
           .from('student_courses')
           .select('student_id')
-          .eq('course_id', String(focusCourse.id));
+          .eq('course_id', String(focusCourse.id))
+          .eq('school_id', schoolId);
 
         if (fallback.error && !/relation|does not exist|column|schema cache/i.test(fallback.error.message || '')) {
           throw fallback.error;
@@ -365,7 +369,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
 
   React.useEffect(() => {
     const loadCourseCalendarEvents = async () => {
-      if (!courseAttendanceOnly || !focusCourse?.id || !activeClassId || !attendanceDate) {
+      if (!courseAttendanceOnly || !focusCourse?.id || !activeClassId || !attendanceDate || !schoolId) {
         setCourseCalendarEvents([]);
         setIsCourseCalendarLoading(false);
         return;
@@ -373,11 +377,11 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
 
       setIsCourseCalendarLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('live_calendar_events')
+        const { data, error } = await supabase.from('live_calendar_events')
           .select('id, title, event_date, start_time, end_time, class_id, class_name, course_id, course_name, notes')
           .eq('class_id', activeClassId)
           .eq('event_date', attendanceDate)
+          .eq('school_id', schoolId)
           .order('event_date', { ascending: true })
           .order('start_time', { ascending: true });
 
@@ -415,7 +419,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
 
   React.useEffect(() => {
     const loadCourseHomework = async () => {
-      if (!courseAttendanceOnly || !focusCourse?.id || !activeClassId) {
+      if (!courseAttendanceOnly || !focusCourse?.id || !activeClassId || !schoolId) {
         setCourseHomeworkItems([]);
         setIsCourseHomeworkLoading(false);
         return;
@@ -433,6 +437,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
             .select('*')
             .eq('class_id', activeClassId)
             .eq('class_course_id', String(focusCourse.id))
+            .eq('school_id', schoolId)
             .order('created_at', { ascending: false });
 
           rows = result.data || [];
@@ -517,7 +522,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
   }, [courseFolderBasePath]);
 
   const loadCourseFolders = React.useCallback(async () => {
-    if (!courseFolderBasePath) {
+    if (!courseFolderBasePath || !schoolId) {
       setCourseFolders([]);
       setOpenCourseFolders({});
       setCourseFolderFiles({});
@@ -587,16 +592,12 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
       if (error) throw error;
 
       // Log folder creation to resources_buckets
-      let schoolId = selectedClass?.school_id;
-      if (!schoolId && activeClassId) {
-        const { data } = await supabase.from('classes').select('school_id').eq('id', activeClassId).maybeSingle();
-        schoolId = data?.school_id;
-      }
+
 
       const { data: publicUrlData } = supabase.storage.from(COURSE_RESOURCES_BUCKET).getPublicUrl(keepPath);
 
       const { error: dbError } = await supabase.from('resources_buckets').insert([{
-        school_id: schoolId || undefined,
+        school_id: schoolId,
         class_id: activeClassId,
         class_course_id: focusCourse?.id,
         name: normalizedName,
@@ -616,7 +617,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
     } finally {
       setIsCourseFolderCreating(false);
     }
-  }, [courseFolderBasePath, newCourseFolderName, loadCourseFolders, notify]);
+  }, [courseFolderBasePath, newCourseFolderName, loadCourseFolders, notify, schoolId]);
 
   const toggleCourseFolderOpen = React.useCallback(async (folderName: string) => {
     const nextOpen = !openCourseFolders[folderName];
@@ -664,7 +665,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
         const { data: publicUrlData } = supabase.storage.from(COURSE_RESOURCES_BUCKET).getPublicUrl(path);
 
         const { error: dbError } = await supabase.from('resources_buckets').insert([{
-          school_id: schoolId || undefined,
+          school_id: schoolId,
           class_id: activeClassId,
           class_course_id: focusCourse?.id,
           name: file.name,
@@ -685,7 +686,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
     } finally {
       setUploadingCourseFolderName(null);
     }
-  }, [courseFolderBasePath, loadFilesForCourseFolder, loadCourseFolders, notify, activeClassId, focusCourse]);
+  }, [courseFolderBasePath, loadFilesForCourseFolder, loadCourseFolders, notify, activeClassId, focusCourse, schoolId]);
 
   const deleteCourseFolder = async (folderName: string) => {
     openConfirmDialog(`Are you sure you want to delete folder "${folderName}" and all its contents?`, async () => {
@@ -735,6 +736,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
           await supabase.from('resources_buckets').delete()
             .eq('class_id', activeClassId)
             .eq('class_course_id', focusCourse.id)
+            .eq('school_id', schoolId)
             .eq('name', file.name)
             .eq('metadata->>type', 'file')
             .eq('metadata->>folder', folderName);

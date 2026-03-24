@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import SMSApp from './sms/App';
 import LMSApp from './lms/App';
+import { supabase } from './sms/supabaseClient';
 
 const APP_MODE_KEY = 'iem_app_mode';
 
@@ -12,6 +13,88 @@ export default function Portal() {
     }
     return 'portal';
   });
+
+  const [schoolId, setSchoolIdState] = useState<string | undefined>(() => {
+    if (typeof window !== 'undefined') {
+      const raw = window.localStorage.getItem('iem_user');
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          return parsed.schoolId || parsed.school_id;
+        } catch {
+          return undefined;
+        }
+      }
+    }
+    return undefined;
+  });
+
+  const [schoolName, setSchoolName] = useState<string | undefined>(() => {
+    if (typeof window !== 'undefined') {
+      const raw = window.localStorage.getItem('iem_user');
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          return parsed.schoolName;
+        } catch {
+          return undefined;
+        }
+      }
+    }
+    return undefined;
+  });
+
+  const updateSchoolId = (newId: string | undefined, newName?: string) => {
+    setSchoolIdState(newId);
+    if (newName) setSchoolName(newName);
+    
+    if (typeof window !== 'undefined') {
+      if (newId) {
+        const raw = window.localStorage.getItem('iem_user');
+        let user = {};
+        try { if (raw) user = JSON.parse(raw); } catch {}
+        window.localStorage.setItem('iem_user', JSON.stringify({ 
+          ...user, 
+          schoolId: newId, 
+          school_id: newId,
+          schoolName: newName || (user as any).schoolName 
+        }));
+      } else {
+        window.localStorage.removeItem('iem_user');
+        setSchoolName(undefined);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const fetchSchoolName = async (id: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('schools')
+          .select('name')
+          .eq('id', id)
+          .maybeSingle();
+        
+        if (!error && data?.name) {
+          setSchoolName(data.name);
+          // Update localStorage with the fetched name
+          const raw = window.localStorage.getItem('iem_user');
+          if (raw) {
+            try {
+              const user = JSON.parse(raw);
+              window.localStorage.setItem('iem_user', JSON.stringify({ ...user, schoolName: data.name }));
+            } catch {}
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch school name:', err);
+      }
+    };
+
+    if (schoolId && !schoolName) {
+      fetchSchoolName(schoolId);
+    }
+  }, [schoolId]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -30,8 +113,8 @@ export default function Portal() {
     setAppMode('portal');
   };
 
-  if (appMode === 'sms') return <SMSApp onSwitch={handleSwitch} />;
-  if (appMode === 'lms') return <LMSApp onSwitch={handleSwitch} />;
+  if (appMode === 'sms') return <SMSApp onSwitch={handleSwitch} schoolId={schoolId} schoolName={schoolName} onSchoolIdChange={updateSchoolId} />;
+  if (appMode === 'lms') return <LMSApp onSwitch={handleSwitch} schoolId={schoolId} schoolName={schoolName} onSchoolIdChange={updateSchoolId} />;
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white relative overflow-hidden">

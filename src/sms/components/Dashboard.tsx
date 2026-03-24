@@ -25,9 +25,10 @@ interface DashboardProps {
       female: number;
     };
   };
+  schoolId: string | undefined;
 }
 
-const Dashboard: React.FC<DashboardProps> = React.memo(({ stats }) => {
+const Dashboard: React.FC<DashboardProps> = React.memo(({ stats, schoolId }) => {
   const [classAverages, setClassAverages] = useState<{ grade: string, percentage: number }[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
@@ -48,8 +49,12 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ stats }) => {
 
   useEffect(() => {
     const fetchGrades = async () => {
+      if (!schoolId) return;
       // Fetch classes first to do manual mapping if join fails
-      const classesRes = await supabase.from('classes').select('id, name');
+      const classesRes = await supabase
+        .from('classes')
+        .select('id, name')
+        .eq('school_id', schoolId);
       const classMap: Record<string, string> = {};
       if (classesRes?.data) {
         classesRes.data.forEach((c: any) => { classMap[c.id] = c.name; });
@@ -61,7 +66,8 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ stats }) => {
           grade,
           class_id,
           name
-        `);
+        `)
+        .eq('school_id', schoolId);
       
       if (error) {
         console.error('Error fetching grades:', error);

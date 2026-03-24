@@ -63,7 +63,7 @@ const isSchemaMissingError = (message?: string | null) => {
   );
 };
 
-export default function ExamManagementPage() {
+export default function ExamManagementPage({ schoolId }: { schoolId: string | undefined }) {
   const [role, setRole] = useState<UserRole>('teacher');
   const [classes, setClasses] = useState<AppClass[]>([]);
   const [courses, setCourses] = useState<AppCourse[]>([]);
@@ -144,13 +144,19 @@ export default function ExamManagementPage() {
   }, [searchQuery, exams, classNameMap, courseNameMap]);
 
   const loadAcademicData = async () => {
+    if (!schoolId) {
+      setClasses([]);
+      setCourses([]);
+      setIsLoadingAcademic(false);
+      return;
+    }
     setIsLoadingAcademic(true);
     setError(null);
 
     try {
       const [classesRes, coursesRes] = await Promise.all([
-        supabase.from('classes').select('id, name').order('created_at', { ascending: false }),
-        supabase.from('class_courses').select('id, class_id, name').order('created_at', { ascending: false }),
+        supabase.from('classes').select('id, name').eq('school_id', schoolId).order('created_at', { ascending: false }),
+        supabase.from('class_courses').select('id, class_id, name').eq('school_id', schoolId).order('created_at', { ascending: false }),
       ]);
 
       if (classesRes.error) throw classesRes.error;
@@ -178,6 +184,11 @@ export default function ExamManagementPage() {
   };
 
   const loadExams = async (classId?: string, courseId?: string) => {
+    if (!schoolId) {
+      setExams([]);
+      setIsLoadingExams(false);
+      return;
+    }
     setIsLoadingExams(true);
     setError(null);
 
@@ -185,6 +196,7 @@ export default function ExamManagementPage() {
       let query = supabase
         .from('exams')
         .select('*')
+        .eq('school_id', schoolId)
         .order('created_at', { ascending: false });
 
       if (classId) {
@@ -224,7 +236,7 @@ export default function ExamManagementPage() {
   useEffect(() => {
     void loadAcademicData();
     void loadExams();
-  }, []);
+  }, [schoolId]);
 
   // Removed the useEffect that resettled selectedCourseId on selectedClassId change
   // to avoid issues when programmatically setting both IDs (e.g. when editing).
@@ -311,7 +323,8 @@ export default function ExamManagementPage() {
         .from('class_course_students')
         .select('student_id')
         .eq('class_course_id', exam.class_course_id)
-        .eq('class_id', exam.class_id);
+        .eq('class_id', exam.class_id)
+        .eq('school_id', schoolId);
 
       if (!classCourseStudentsRes.error) {
         studentIds = (classCourseStudentsRes.data || []).map((row: any) => String(row.student_id));
@@ -319,7 +332,8 @@ export default function ExamManagementPage() {
         const fallbackRes = await supabase
           .from('student_courses')
           .select('student_id')
-          .eq('course_id', exam.class_course_id);
+          .eq('course_id', exam.class_course_id)
+          .eq('school_id', schoolId);
 
         if (!fallbackRes.error) {
           studentIds = (fallbackRes.data || []).map((row: any) => String(row.student_id));
@@ -334,7 +348,8 @@ export default function ExamManagementPage() {
         const studentsRes = await supabase
           .from('students')
           .select('id, name')
-          .in('id', studentIds);
+          .in('id', studentIds)
+          .eq('school_id', schoolId);
 
         if (studentsRes.error) throw studentsRes.error;
 
@@ -360,13 +375,15 @@ export default function ExamManagementPage() {
       let result: any = await supabase
         .from('exam_grades')
         .select('student_id, grade, note, percentage')
-        .eq('exam_id', examId);
+        .eq('exam_id', examId)
+        .eq('school_id', schoolId);
 
       if (result.error && isSchemaMissingError(result.error.message)) {
         result = await supabase
           .from('exam_grades')
           .select('student_id, grade')
-          .eq('exam_id', examId);
+          .eq('exam_id', examId)
+          .eq('school_id', schoolId);
       }
 
       if (result.error) {
@@ -471,6 +488,7 @@ export default function ExamManagementPage() {
           note: notes[studentId] || null,
           name: classNameMap.get(selectedExamForGrading.class_id) || '',
           course_name: courseNameMap.get(selectedExamForGrading.class_course_id) || '',
+          school_id: schoolId,
         }],
         { onConflict: 'exam_id,student_id' }
       );
@@ -629,7 +647,7 @@ export default function ExamManagementPage() {
       }, schoolId);
 
       if (editingExamId) {
-        const updateResult = await supabase.from('exams').update(payload).eq('id', editingExamId);
+        const updateResult = await supabase.from('exams').update(payload).eq('id', editingExamId).eq('school_id', schoolId);
         if (updateResult.error) throw updateResult.error;
         setStatus('Exam updated successfully.');
       } else {
@@ -660,7 +678,7 @@ export default function ExamManagementPage() {
     setError(null);
 
     try {
-      const deleteResult = await supabase.from('exams').delete().eq('id', exam.id);
+      const deleteResult = await supabase.from('exams').delete().eq('id', exam.id).eq('school_id', schoolId);
       if (deleteResult.error) throw deleteResult.error;
       setStatus('Exam deleted.');
       await loadExams(selectedClassId, selectedCourseId);

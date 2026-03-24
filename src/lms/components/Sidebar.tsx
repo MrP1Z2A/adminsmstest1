@@ -15,6 +15,7 @@ interface SidebarProps {
   isCollapsed?: boolean;
   onCollapse?: () => void;
   onSwitch?: () => void;
+  schoolName?: string;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -28,7 +29,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onToggle,
   isCollapsed,
   onCollapse,
-  onSwitch
+  onSwitch,
+  schoolName
 }) => {
   const handleNavClick = (view: View) => {
     onViewChange(view);
@@ -65,7 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="w-10 h-10 bg-[#4ea59d] rounded-2xl flex items-center justify-center shadow-xl shadow-[#4ea59d]/20 shrink-0">
               <i className="fa-solid fa-graduation-cap text-xl"></i>
             </div>
-            {!isCollapsed && <h1 className="text-xl font-black tracking-tighter text-white uppercase ">IEM</h1>}
+            {!isCollapsed && <h1 className="text-xl font-black tracking-tighter text-white uppercase truncate max-w-[180px]">{schoolName || 'IEM'}</h1>}
           </div>
           <button onClick={onToggle} className="md:hidden text-slate-400 hover:text-white">
             <i className="fa-solid fa-xmark text-xl"></i>

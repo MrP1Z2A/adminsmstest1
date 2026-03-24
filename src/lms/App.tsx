@@ -78,6 +78,9 @@ const fetchNoticeBoardData = async (schoolId?: string): Promise<NoticeItem[]> =>
 
   if (schoolId) {
     query = query.eq('school_id', schoolId);
+  } else {
+    // If no schoolId is provided, return empty to ensure data isolation
+    return [];
   }
 
   const { data, error } = await query;
@@ -148,9 +151,12 @@ const getStoredViewedNoticeIds = () => {
 
 interface AppProps {
   onSwitch?: () => void;
+  schoolId?: string;
+  schoolName?: string;
+  onSchoolIdChange?: (newId: string | undefined, newName?: string) => void;
 }
 
-const App: React.FC<AppProps> = ({ onSwitch }) => {
+const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdChange }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(getStoredLoginState);
   const [user, setUser] = useState<User>(getStoredUser);
   const [courses, setCourses] = useState<Course[]>(INITIAL_COURSES);
@@ -191,8 +197,8 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
     setIsLoading(true);
     try {
       // Debug log for schoolId
-      console.log('[NoticeBoard] Fetching notices for schoolId:', user.schoolId);
-      const notices = await fetchNoticeBoardData(user.schoolId);
+      console.log('[NoticeBoard] Fetching notices for schoolId:', schoolId);
+      const notices = await fetchNoticeBoardData(schoolId);
 
       console.log('[NoticeBoard] Notices fetched:', notices);
       setDynamicAnnouncements(notices);
@@ -202,7 +208,8 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         const { data: gradesData, error: gradesError } = await supabase
           .from('exam_grades')
           .select('*')
-          .eq('student_id', user.studentId);
+          .eq('student_id', user.studentId)
+          .eq('school_id', schoolId);
         if (!gradesError && gradesData) {
            const mappedGrades = gradesData.map(g => ({
              className: g.name || 'Unknown Class',
@@ -220,7 +227,8 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         const { data: enrolledData, error: enrolledError } = await supabase
           .from('class_course_students')
           .select('class_course_id, class_id')
-          .eq('student_id', user.studentId);
+          .eq('student_id', user.studentId)
+          .eq('school_id', schoolId);
 
         if (!enrolledError && enrolledData) {
           const courseIds = enrolledData.map(d => d.class_course_id);
@@ -231,6 +239,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
               .from('exams')
               .select('*')
               .in('class_course_id', courseIds)
+              .eq('school_id', schoolId)
               .order('created_at', { ascending: false });
             
             if (!examsError && examsData) {
@@ -256,6 +265,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
               .from('homework_assignments')
               .select('*')
               .in('class_course_id', courseIds)
+              .eq('school_id', schoolId)
               .order('created_at', { ascending: false });
 
             if (!homeworkError && homeworkData) {
@@ -263,7 +273,8 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
               const { data: submissionsData } = await supabase
                 .from('homework_submissions')
                 .select('assignment_id, status, submission_url')
-                .eq('student_id', user.studentId);
+                .eq('student_id', user.studentId)
+                .eq('school_id', schoolId);
 
               const mappedAssignments = homeworkData.map(hw => {
                 const dateSource = hw.due_date || hw.created_at;
@@ -301,7 +312,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user.schoolId, user.studentId]);
+  }, [schoolId, user.studentId]);
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -320,8 +331,8 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
       .select('id, name, avatar, email, attendanceRate, school_id')
       .or(`email.eq.${user.email},name.eq.${user.email}`);
 
-    if (user.schoolId) {
-      studentQuery = studentQuery.eq('school_id', user.schoolId);
+    if (schoolId) {
+      studentQuery = studentQuery.eq('school_id', schoolId);
     }
 
     const { data: student, error } = await studentQuery.maybeSingle();
@@ -332,6 +343,11 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
     }
 
     if (!student) return;
+
+    // Sync schoolId back to root if it's different
+    if (student.school_id && student.school_id !== schoolId && onSchoolIdChange) {
+      onSchoolIdChange(student.school_id);
+    }
 
     const avatarUrl = getStudentAvatarUrl(student.avatar);
     const attendanceRate = formatAttendanceRate(student.attendanceRate);
@@ -346,7 +362,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
       schoolId: student.school_id || prev.schoolId,
       avatar: avatarUrl || prev.avatar
     }));
-  }, [isLoggedIn, user.email, user.schoolId]);
+  }, [isLoggedIn, user.email, schoolId]);
 
   useEffect(() => {
     void loadStudentProfile();
@@ -386,17 +402,20 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
     return () => window.clearInterval(refreshInterval);
   }, [isLoggedIn, performSmsSync, loadStudentProfile]);
 
-  const handleLogin = (role: Exclude<UserRole, UserRole.PARENT>, email: string, schoolId?: string) => {
+  const handleLogin = (role: Exclude<UserRole, UserRole.PARENT>, email: string, loginSchoolId?: string) => {
     const newUser = { 
       ...INITIAL_USER, 
       role, 
       email,
       name: INITIAL_USER.name,
-      schoolId,
+      schoolId: loginSchoolId,
       childId: undefined
     };
     setUser(newUser);
     setIsLoggedIn(true);
+    if (loginSchoolId && onSchoolIdChange) {
+      onSchoolIdChange(loginSchoolId);
+    }
   };
 
   const executeHomeworkSubmission = async () => {
@@ -425,7 +444,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
             student_id: user.studentId,
             submission_url: submissionUrl,
             comment: submissionComment,
-            school_id: user.schoolId
+            school_id: schoolId
           });
 
         if (submitError) throw submitError;
@@ -1413,7 +1432,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
 
   const renderCourses = () => (
     <COURSES
-      schoolId={user.schoolId}
+      schoolId={schoolId}
       notify={(message) => console.log(message)}
       onOpenCoursePage={({ id }) => {
         const matchedCourse = courses.find(course => String(course.id) === String(id));
@@ -1739,6 +1758,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         isCollapsed={isSidebarCollapsed}
         onCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         onSwitch={onSwitch}
+        schoolName={schoolName}
       />
       <main className={`flex-1 transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-72'} p-6 md:p-8 overflow-x-hidden ${isSidebarOpen ? 'hidden md:block' : 'block'}`}>
         {currentView === 'dashboard' && renderDashboard()}
@@ -1753,7 +1773,7 @@ const App: React.FC<AppProps> = ({ onSwitch }) => {
         {currentView === 'quiz-player' && renderQuizPlayer()}
         {currentView === 'studies' && renderStudies()}
         {currentView === 'contact' && renderContact()}
-        {currentView === 'timetable' && <LiveCalendar />}
+        {currentView === 'timetable' && <LiveCalendar schoolId={schoolId} />}
         {currentView === 'profile' && (
            <div className="space-y-8 animate-fadeIn text-slate-100">
              <h2 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">User Profile</h2>

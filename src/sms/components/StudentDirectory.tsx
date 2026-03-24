@@ -26,6 +26,7 @@ interface StudentDirectoryProps {
   verifyAdminPassword: (password: string) => Promise<boolean>;
   updateStudentProfilePhoto: (studentId: string, file: File) => Promise<Student>;
   deleteEntity: (id: string, type: string) => void;
+  schoolId: string | undefined;
 }
 
 type BulkAssignmentTarget = {
@@ -56,7 +57,8 @@ const StudentDirectory: React.FC<StudentDirectoryProps> = ({
   requestStudentEditWithPassword,
   verifyAdminPassword,
   updateStudentProfilePhoto,
-  deleteEntity
+  deleteEntity,
+  schoolId
 }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [genderFilter, setGenderFilter] = React.useState<'all' | 'Male' | 'Female'>('all');
@@ -116,12 +118,13 @@ const StudentDirectory: React.FC<StudentDirectoryProps> = ({
     return matchesQuery && matchesGender && matchesDate;
   });
 
-  const getStudentClassName = (studentId: string) => {
-    const matchedClass = classes.find(classItem =>
+  const getStudentClassNames = (studentId: string) => {
+    const matchedClasses = classes.filter(classItem =>
       (classItem?.student_ids || []).map((id: any) => String(id)).includes(String(studentId))
     );
 
-    return matchedClass?.name ? String(matchedClass.name) : 'No Class';
+    if (matchedClasses.length === 0) return 'No Class';
+    return matchedClasses.map(c => c.name || c.class_code || 'Unnamed').join(', ');
   };
 
   React.useEffect(() => {
@@ -138,6 +141,7 @@ const StudentDirectory: React.FC<StudentDirectoryProps> = ({
           .from('class_courses')
           .select('id, name, class_id')
           .in('class_id', bulkSelectedClassIds)
+          .eq('school_id', schoolId)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -454,7 +458,7 @@ const StudentDirectory: React.FC<StudentDirectoryProps> = ({
     doc.setFont('helvetica', 'normal');
 
     filteredStudents.forEach((student) => {
-      const rowText = `${namePrefix}${student.name} | ${student.id} | ${student.email || '-'} | ${getStudentClassName(String(student.id))}`;
+      const rowText = `${namePrefix}${student.name} | ${student.id} | ${student.email || '-'} | ${getStudentClassNames(String(student.id))}`;
       const wrapped = doc.splitTextToSize(rowText, 515);
 
       if (y + (wrapped.length * lineHeight) > pageHeight - 36) {
@@ -712,7 +716,7 @@ const StudentDirectory: React.FC<StudentDirectoryProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <i className="fas fa-school w-3 text-slate-300"></i>
-                  <span>{getStudentClassName(String(s.id))}</span>
+                  <span className="truncate" title={getStudentClassNames(String(s.id))}>{getStudentClassNames(String(s.id))}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <i className="fas fa-venus-mars w-3 text-slate-300"></i>
@@ -799,6 +803,11 @@ const StudentDirectory: React.FC<StudentDirectoryProps> = ({
                   <p className="mt-2 text-xs font-bold text-rose-500">{photoUploadError}</p>
                 )}
               </div>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
+              <p className="text-[10px] font-black uppercase tracking-widest text-brand-500 mb-2">Enrolled Classes</p>
+              <p className="text-sm font-bold text-brand-600 dark:text-brand-400">{getStudentClassNames(selectedStudent.id)}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

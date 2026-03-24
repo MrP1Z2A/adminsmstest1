@@ -59,7 +59,7 @@ const FOLDER_MARKER_FILE = '__folder__.pdf';
 const isFolderMarker = (name: string) => name === '.keep' || name === FOLDER_MARKER_FILE;
 const FOLDER_FILE_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.json,.xml,.jpg,.jpeg,.png,.gif,.webp,.svg,.mp3,.wav,.mp4,.mov,.zip,.rar,.7z,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv,application/json,image/*,audio/*,video/*,application/zip,application/x-rar-compressed,application/x-7z-compressed';
 
-export default function HomeworkManager() {
+export default function HomeworkManager({ schoolId }: { schoolId: string | undefined }) {
   const [error, setError] = useState<string | null>(null);
   const [classes, setClasses] = useState<AppClass[]>([]);
   const [courses, setCourses] = useState<AppCourse[]>([]);
@@ -288,6 +288,12 @@ export default function HomeworkManager() {
   };
 
   const fetchAcademicData = async () => {
+    if (!schoolId) {
+      setClasses([]);
+      setCourses([]);
+      setIsLoadingAcademic(false);
+      return;
+    }
     setIsLoadingAcademic(true);
     setError(null);
 
@@ -299,6 +305,7 @@ export default function HomeworkManager() {
         const result = await supabase
           .from('classes')
           .select('*')
+          .eq('school_id', schoolId)
           .order('created_at', { ascending: false });
         classRows = result.data || [];
         classError = result.error;
@@ -307,7 +314,8 @@ export default function HomeworkManager() {
       if (classError && /created_at|column|schema cache|does not exist/i.test(classError.message || '')) {
         const fallbackClassResult = await supabase
           .from('classes')
-          .select('*');
+          .select('*')
+          .eq('school_id', schoolId);
         classRows = fallbackClassResult.data || [];
         classError = fallbackClassResult.error;
       }
@@ -323,6 +331,7 @@ export default function HomeworkManager() {
         const result = await supabase
           .from('class_courses')
           .select('*')
+          .eq('school_id', schoolId)
           .order('created_at', { ascending: false });
         courseRows = result.data || [];
         courseError = result.error;
@@ -331,7 +340,8 @@ export default function HomeworkManager() {
       if (courseError && /created_at|column|schema cache|does not exist/i.test(courseError.message || '')) {
         const fallbackCourseResult = await supabase
           .from('class_courses')
-          .select('*');
+          .select('*')
+          .eq('school_id', schoolId);
         courseRows = fallbackCourseResult.data || [];
         courseError = fallbackCourseResult.error;
       }
@@ -375,7 +385,7 @@ export default function HomeworkManager() {
   };
 
   const fetchHomework = async (classId: string, courseId: string) => {
-    if (!classId || !courseId) {
+    if (!classId || !courseId || !schoolId) {
       setHomeworkItems([]);
       setOpenHomework({});
       return;
@@ -395,6 +405,7 @@ export default function HomeworkManager() {
           .select('*')
           .eq('class_id', classId)
           .eq('class_course_id', courseId)
+          .eq('school_id', schoolId)
           .order('created_at', { ascending: false });
 
         rows = result.data || [];
@@ -746,7 +757,8 @@ export default function HomeworkManager() {
           const result = await supabase
             .from('homework_assignments')
             .update(payload)
-            .eq('id', editingHomeworkId);
+            .eq('id', editingHomeworkId)
+            .eq('school_id', schoolId);
           updateError = result.error;
         }
 
@@ -755,7 +767,8 @@ export default function HomeworkManager() {
           const fallbackUpdate = await supabase
             .from('homework_assignments')
             .update(payloadWithoutAttachment)
-            .eq('id', editingHomeworkId);
+            .eq('id', editingHomeworkId)
+            .eq('school_id', schoolId);
           updateError = fallbackUpdate.error;
         }
 
@@ -783,7 +796,7 @@ export default function HomeworkManager() {
         {
           const result = await supabase
             .from('homework_assignments')
-            .insert([payload]);
+            .insert([{ ...payload, school_id: schoolId }]);
           insertError = result.error;
         }
 
