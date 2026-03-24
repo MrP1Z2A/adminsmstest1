@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
-import { 
+import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, AreaChart, Area, Cell, RadarChart, PolarGrid, PolarAngleAxis, Radar
 } from 'recharts';
@@ -136,7 +136,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [notification, setNotification] = useState<{message: string, type: 'success' | 'info'} | null>(null);
+  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'info' } | null>(null);
   const [cloudSyncCountdown, setCloudSyncCountdown] = useState(CLOUD_SYNC_INTERVAL_SECONDS);
   const [isCloudSyncRunning, setIsCloudSyncRunning] = useState(false);
   const isCloudSyncRunningRef = useRef(false);
@@ -159,7 +159,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     bruteForceProtection: true,
     dataEncryption: true
   });
-  
+
   // Filters
   const [selectedDate, setSelectedDate] = useState('');
   const [classes, setClasses] = useState<any[]>([]);
@@ -217,10 +217,10 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
   const stats = useMemo(() => {
     const totalStudents = allStudents.length || students.length;
     const totalTeachers = teachers.length;
-    
+
     // Calculate parents from student records for dashboard consistency
     const totalParents = buildParentEntries(allStudents.length > 0 ? allStudents : students).length;
-    
+
     const totalStudentServices = studentServiceStaff.length;
     const maleStudents = students.filter(student => student.gender === 'Male').length;
     const femaleStudents = students.filter(student => student.gender === 'Female').length;
@@ -287,7 +287,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
             .select('school_id')
             .eq('id', user.id)
             .maybeSingle();
-          
+
           profile = data;
           profileError = error;
 
@@ -297,7 +297,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
             }
             break;
           }
-          
+
           attempts++;
           if (attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 800 * attempts)); // Exponential backoff
@@ -997,7 +997,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       .eq('school_id', schoolId);
 
     const studentsInCourse = new Set((existingCourseStudents || []).map(r => String(r.student_id)));
-    
+
     const idsToInsertToCourse = uniqueIncomingIds.filter(id => !studentsInCourse.has(id));
     const alreadyEnrolledCount = uniqueIncomingIds.length - idsToInsertToCourse.length;
 
@@ -1569,7 +1569,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
   const handleUpdate = async () => {
     if (!editTarget) return;
     const { type, data } = editTarget;
-    
+
     try {
       let finalData = { ...data };
 
@@ -1627,7 +1627,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         case 'homework': setHomeworks(prev => prev.map(h => h.id === finalData.id ? finalData : h)); break;
         case 'program': setPrograms(prev => prev.map(p => p.id === finalData.id ? finalData : p)); break;
       }
-      
+
       notify(`${type.charAt(0).toUpperCase() + type.slice(1)} synchronized.`);
       setIsEditModalOpen(false);
       setEditTarget(null);
@@ -2078,7 +2078,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
         setStudents(prev => prev.map(student => String(student.id) === String(updatedStudent.id) ? updatedStudent : student));
         setAllStudents(prev => prev.map(student => String(student.id) === String(updatedStudent.id) ? updatedStudent : student));
-        
+
         setClasses(prev => prev.map(classItem => {
           if (!enrollData.selectedClassIds.includes(String(classItem.id))) return classItem;
           const existingIds = (classItem.student_ids || []).map((id: any) => String(id));
@@ -3234,9 +3234,9 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           </div>
         </div>
       )}
-      
+
       {/* ENROLLMENT MODAL */}
-      <EnrollmentModal 
+      <EnrollmentModal
         isOpen={isEnrollModalOpen}
         onClose={abortEnrollFlow}
         enrollData={enrollData}
@@ -3267,7 +3267,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       />
 
       {/* GLOBAL EDIT MODAL */}
-      <EditModal 
+      <EditModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         editTarget={editTarget}
@@ -3276,7 +3276,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       />
 
       {/* PERMISSIONS MODAL */}
-      <PermissionsModal 
+      <PermissionsModal
         isOpen={isPermissionsModalOpen}
         onClose={() => setIsPermissionsModalOpen(false)}
         permTarget={permTarget}
@@ -3284,11 +3284,11 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       />
 
       {/* Sidebar Navigation */}
-      <Sidebar 
-        currentPage={currentPage} 
-        setCurrentPage={setCurrentPage} 
-        isMobileMenuOpen={isMobileMenuOpen} 
-        setIsMobileMenuOpen={setIsMobileMenuOpen} 
+      <Sidebar
+        currentPage={currentPage}
+        setCurrentPage={setCurrentPage}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
         isCollapsed={isSidebarCollapsed}
         onCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         onSwitch={onSwitch}
@@ -3299,7 +3299,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         <header className="h-20 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-40 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-4 sm:gap-8">
             <button className="lg:hidden p-3 text-slate-500 hover:text-brand-500 transition-all" onClick={() => setIsMobileMenuOpen(true)}><i className="fas fa-bars-staggered"></i></button>
-            <div className="hidden sm:flex flex-col"><span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">System Pulse</span><span className="text-xs font-bold text-emerald-500">Live Calibration</span></div>
+            <div className="hidden sm:flex flex-col"><span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400"></span><span className="text-xs font-bold text-emerald-500"></span></div>
           </div>
           <div className="flex items-center gap-3 sm:gap-6">
             <button
@@ -3314,7 +3314,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         </header>
 
         <div className="p-4 sm:p-6 lg:p-10 xl:p-12 space-y-8 sm:space-y-10 lg:space-y-12 max-w-[1800px] w-full mx-auto overflow-hidden">
-          
+
           {/* DASHBOARD */}
           {currentPage === 'dashboard' && <Dashboard stats={stats} schoolId={schoolId} />}
 
@@ -3328,7 +3328,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
           {/* STUDENTS PAGE (DIRECTORY) - FULL CRUD CONTROLS */}
           {currentPage === 'students' && (
-            <StudentDirectory 
+            <StudentDirectory
               title="Student Directory"
               selectLabel="Student Select"
               students={students}
@@ -3370,7 +3370,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
           {/* REGISTRATION HUB - ENROLLMENT & DELETION */}
           {currentPage === 'student-register' && (
-            <RegistrationHub 
+            <RegistrationHub
               students={students}
               schoolId={schoolId}
               enrollStudentAction={enrollStudentAction}
@@ -3393,7 +3393,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
           {/* DAILY ATTENDANCE - SUBJECT SPECIFIC */}
           {currentPage === 'student-attendance' && (
-            <AttendanceProtocol 
+            <AttendanceProtocol
               students={attendanceStudents}
               subjects={subjects}
               attendanceDate={attendanceDate}
@@ -3579,8 +3579,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                 {subjects.map(sub => (
                   <div key={sub.id} className="bg-white dark:bg-slate-900 p-10 rounded-[56px] shadow-premium border border-slate-100 dark:border-slate-800 group hover:-translate-y-4 transition-all duration-500 relative">
                     <div className="absolute top-8 right-8 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                       <button onClick={() => openEditModal('subject', sub)} className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-brand-500 shadow-sm"><i className="fas fa-edit text-sm"></i></button>
-                       <button onClick={() => deleteEntity(sub.id, 'subject')} className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm"><i className="fas fa-trash text-sm"></i></button>
+                      <button onClick={() => openEditModal('subject', sub)} className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-brand-500 shadow-sm"><i className="fas fa-edit text-sm"></i></button>
+                      <button onClick={() => deleteEntity(sub.id, 'subject')} className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm"><i className="fas fa-trash text-sm"></i></button>
                     </div>
                     <div className="flex justify-between items-start mb-12">
                       <div className={`w-20 h-20 ${sub.bg} ${sub.color} rounded-[32px] flex items-center justify-center text-4xl shadow-inner group-hover:rotate-6 transition-transform`}><i className={`fas ${sub.icon}`}></i></div>
@@ -3589,8 +3589,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                     <h4 className="text-2xl font-black mb-2 group-hover:text-brand-500 transition-colors">{sub.name}</h4>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-10">{sub.teacher}</p>
                     <div className="space-y-4">
-                       <div className="flex justify-between text-[10px] font-black uppercase tracking-widest"><span className="text-slate-400">Syllabus Sync</span><span className="text-brand-500">{sub.progress}%</span></div>
-                       <div className="h-2.5 w-full bg-slate-50 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-brand-500 transition-all duration-1000 shadow-glow" style={{ width: `${sub.progress}%` }}></div></div>
+                      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest"><span className="text-slate-400">Syllabus Sync</span><span className="text-brand-500">{sub.progress}%</span></div>
+                      <div className="h-2.5 w-full bg-slate-50 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-brand-500 transition-all duration-1000 shadow-glow" style={{ width: `${sub.progress}%` }}></div></div>
                     </div>
                   </div>
                 ))}
@@ -3626,26 +3626,26 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           {/* PROGRAMS PAGE - WITH CRUD */}
           {currentPage === 'programs' && (
             <div className="space-y-12 animate-in fade-in duration-700 pb-20">
-               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter">Academic Pathways</h2>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                 {programs.map((prog) => (
-                    <div key={prog.id} className="bg-white dark:bg-slate-900 rounded-[80px] p-16 shadow-premium border border-slate-100 dark:border-slate-800 group hover:shadow-2xl transition-all duration-500 flex flex-col md:flex-row gap-12 relative overflow-hidden">
-                       <div className="absolute top-12 right-12 flex gap-4 opacity-0 group-hover:opacity-100 transition-all">
-                          <button onClick={() => openEditModal('program', prog)} className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-brand-500 shadow-sm"><i className="fas fa-gear"></i></button>
-                          <button onClick={() => deleteEntity(prog.id, 'program')} className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm"><i className="fas fa-trash-can"></i></button>
-                       </div>
-                       <div className={`w-32 h-32 md:w-48 md:h-48 rounded-[64px] bg-gradient-to-tr ${prog.color} flex items-center justify-center text-white text-5xl md:text-7xl shadow-xl group-hover:scale-110 group-hover:-rotate-3 transition-transform flex-shrink-0`}><i className={`fas ${prog.icon}`}></i></div>
-                       <div className="flex-1 flex flex-col justify-center">
-                          <p className="text-xs font-black text-brand-500 uppercase tracking-[0.4em] mb-4">{prog.code}</p>
-                          <h4 className="text-4xl font-black mb-8 leading-tight tracking-tighter">{prog.name}</h4>
-                          <div className="flex gap-12">
-                             <div><p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Total Students</p><p className="text-2xl font-black">{prog.students}</p></div>
-                             <div><p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Duration</p><p className="text-2xl font-black">{prog.duration}</p></div>
-                          </div>
-                       </div>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter">Academic Pathways</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                {programs.map((prog) => (
+                  <div key={prog.id} className="bg-white dark:bg-slate-900 rounded-[80px] p-16 shadow-premium border border-slate-100 dark:border-slate-800 group hover:shadow-2xl transition-all duration-500 flex flex-col md:flex-row gap-12 relative overflow-hidden">
+                    <div className="absolute top-12 right-12 flex gap-4 opacity-0 group-hover:opacity-100 transition-all">
+                      <button onClick={() => openEditModal('program', prog)} className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-brand-500 shadow-sm"><i className="fas fa-gear"></i></button>
+                      <button onClick={() => deleteEntity(prog.id, 'program')} className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm"><i className="fas fa-trash-can"></i></button>
                     </div>
-                 ))}
-               </div>
+                    <div className={`w-32 h-32 md:w-48 md:h-48 rounded-[64px] bg-gradient-to-tr ${prog.color} flex items-center justify-center text-white text-5xl md:text-7xl shadow-xl group-hover:scale-110 group-hover:-rotate-3 transition-transform flex-shrink-0`}><i className={`fas ${prog.icon}`}></i></div>
+                    <div className="flex-1 flex flex-col justify-center">
+                      <p className="text-xs font-black text-brand-500 uppercase tracking-[0.4em] mb-4">{prog.code}</p>
+                      <h4 className="text-4xl font-black mb-8 leading-tight tracking-tighter">{prog.name}</h4>
+                      <div className="flex gap-12">
+                        <div><p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Total Students</p><p className="text-2xl font-black">{prog.students}</p></div>
+                        <div><p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Duration</p><p className="text-2xl font-black">{prog.duration}</p></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -3705,7 +3705,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           )}
 
           {/* FALLBACK HUB */}
-          {![ 'dashboard', 'live-calendar', 'students', 'parents', 'parent-detail', 'student-attendance', 'class-attendance', 'class-course', 'student-register', 'teacher-register', 'teachers', 'student-service', 'student-service-batch', 'library', 'homework', 'report-card', 'payment', 'payment-assign', 'payment-history', 'student-finance-status', 'programs', 'exam', 'security', 'subject', 'notice', 'notice-detail' ].includes(currentPage) && (
+          {!['dashboard', 'live-calendar', 'students', 'parents', 'parent-detail', 'student-attendance', 'class-attendance', 'class-course', 'student-register', 'teacher-register', 'teachers', 'student-service', 'student-service-batch', 'library', 'homework', 'report-card', 'payment', 'payment-assign', 'payment-history', 'student-finance-status', 'programs', 'exam', 'security', 'subject', 'notice', 'notice-detail'].includes(currentPage) && (
             <div className="bg-white dark:bg-slate-900 p-6 sm:p-10 md:p-16 lg:p-24 rounded-[40px] sm:rounded-[72px] lg:rounded-[120px] text-center shadow-premium animate-in zoom-in-95 duration-500 border border-slate-100 dark:border-slate-800">
               <div className="w-24 h-24 sm:w-36 sm:h-36 lg:w-48 lg:h-48 bg-brand-500/10 text-brand-500 rounded-[32px] sm:rounded-[56px] lg:rounded-[80px] flex items-center justify-center mx-auto mb-8 sm:mb-12 lg:mb-16 text-4xl sm:text-6xl lg:text-8xl shadow-inner group-hover:rotate-12 transition-all"><i className="fas fa-microchip"></i></div>
               <h3 className="text-2xl sm:text-4xl lg:text-6xl font-black tracking-tighter capitalize">{currentPage.replace('-', ' ')} Hub</h3>

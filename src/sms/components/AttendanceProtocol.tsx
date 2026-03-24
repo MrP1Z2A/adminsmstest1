@@ -197,8 +197,6 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
   const [newCourseFolderName, setNewCourseFolderName] = React.useState('');
   const [isCourseFolderCreating, setIsCourseFolderCreating] = React.useState(false);
   const [uploadingCourseFolderName, setUploadingCourseFolderName] = React.useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = React.useState<number>(0);
-  const [uploadingFileName, setUploadingFileName] = React.useState<string>('');
   const classImageInputRef = React.useRef<HTMLInputElement | null>(null);
   const timetableInputRef = React.useRef<HTMLInputElement | null>(null);
   const newCourseImageInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -645,53 +643,17 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
     }
 
     setUploadingCourseFolderName(folderName);
-    setUploadProgress(0);
-
-    // Helper: upload a single file via XHR so we can track progress
-    const uploadWithProgress = (path: string, file: File, supabaseUrl: string, anonKey: string): Promise<void> =>
-      new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        const endpoint = `${supabaseUrl}/storage/v1/object/${COURSE_RESOURCES_BUCKET}/${path}`;
-        xhr.open('POST', endpoint);
-        xhr.setRequestHeader('Authorization', `Bearer ${anonKey}`);
-        xhr.setRequestHeader('x-upsert', 'false');
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            setUploadProgress(Math.round((e.loaded / e.total) * 100));
-          }
-        };
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error(`Upload failed: ${xhr.statusText || xhr.status}`));
-        };
-        xhr.onerror = () => reject(new Error('Network error during upload.'));
-        const formData = new FormData();
-        formData.append('', file, file.name);
-        xhr.send(formData);
-      });
-
     try {
-      const supabaseUrl = (supabase as any).supabaseUrl as string;
-      const anonKey = (supabase as any).supabaseKey as string;
-
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
-        setUploadingFileName(file.name);
-        setUploadProgress(0);
+      for (const file of selectedFiles) {
         const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const path = `${courseFolderBasePath}/${folderName}/${Date.now()}-${sanitized}`;
-
-        if (supabaseUrl && anonKey) {
-          await uploadWithProgress(path, file, supabaseUrl, anonKey);
-        } else {
-          // Fallback: use Supabase client without progress
-          const { error } = await supabase.storage
-            .from(COURSE_RESOURCES_BUCKET)
-            .upload(path, file, { upsert: false, contentType: file.type || undefined });
-          if (error) throw error;
-        }
-
-        setUploadProgress(100);
+        const { error } = await supabase.storage
+          .from(COURSE_RESOURCES_BUCKET)
+          .upload(path, file, {
+            upsert: false,
+            contentType: file.type || undefined,
+          });
+        if (error) throw error;
 
         // Log file upload to resources_buckets
         let schoolId = selectedClass?.school_id;
@@ -723,8 +685,6 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
       notify(`Failed to upload files: ${error?.message || 'Unknown error'}`);
     } finally {
       setUploadingCourseFolderName(null);
-      setUploadProgress(0);
-      setUploadingFileName('');
     }
   }, [courseFolderBasePath, loadFilesForCourseFolder, loadCourseFolders, notify, activeClassId, focusCourse, schoolId]);
 
@@ -1956,25 +1916,6 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
                                   }}
                                 />
                               </div>
-
-                              {/* Upload progress bar */}
-                              {uploadingCourseFolderName === folder.name && (
-                                <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-500 truncate max-w-[70%]">
-                                      <i className="fas fa-arrow-up-from-bracket mr-1"></i>
-                                      {uploadingFileName || 'Uploading...'}
-                                    </p>
-                                    <span className="text-[10px] font-black text-brand-500">{uploadProgress}%</span>
-                                  </div>
-                                  <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full bg-brand-500 rounded-full transition-all duration-300"
-                                      style={{ width: `${uploadProgress}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
 
                               {isOpen && (
                                 <div className="px-3 pb-3 border-t border-slate-200 dark:border-slate-700 pt-2 space-y-2">
