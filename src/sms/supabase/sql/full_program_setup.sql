@@ -1,4 +1,4 @@
--- Full Supabase setup for iacademy-intelligence
+-- Full Supabase setup for iem-intelligence
 -- Run this file in Supabase SQL Editor.
 -- It is written to be rerunnable (idempotent where possible).
 
