@@ -55,6 +55,15 @@ export interface NoticeRecord {
   date: string;
 }
 
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  color: string;
+  date: string;
+}
+
 export interface ParentPortalData {
   examResults: ExamResult[];
   attendance: AttendanceStats;
@@ -62,6 +71,7 @@ export interface ParentPortalData {
   payments: PaymentRecord[];
   reportCard: ReportCard | null;
   notices: NoticeRecord[];
+  achievements: Achievement[];
   lastSync: string;
 }
 
@@ -85,6 +95,7 @@ export const fetchParentPortalData = async (
     paymentsRes,
     reportCardRes,
     noticesRes,
+    achievementsRes,
   ] = await Promise.allSettled([
     // 3. Exam grades - use student_id and school_id
     supabase
@@ -127,6 +138,14 @@ export const fetchParentPortalData = async (
       .eq('school_id', schoolId)
       .order('notice_date', { ascending: false })
       .limit(5),
+
+    // 8. Achievements - use student_id and school_id
+    supabase
+      .from('student_achievements')
+      .select('*')
+      .eq('student_id', primaryStudentId)
+      .eq('school_id', schoolId)
+      .order('achievement_date', { ascending: false }),
   ]);
 
   // --- Sub-queries for Homework ---
@@ -341,6 +360,21 @@ export const fetchParentPortalData = async (
     }
   }
 
+  // --- Achievements ---
+  const achievements: Achievement[] = [];
+  if (achievementsRes.status === 'fulfilled' && achievementsRes.value.data) {
+    for (const row of achievementsRes.value.data) {
+      achievements.push({
+        id: row.id,
+        title: row.title,
+        description: row.description || '',
+        icon: row.icon || 'fa-award',
+        color: row.color ? (row.color.startsWith('text-') ? row.color : `text-${row.color}-500`) : 'text-emerald-500',
+        date: row.achievement_date ? new Date(row.achievement_date).toLocaleDateString() : '',
+      });
+    }
+  }
+
   return {
     examResults,
     attendance,
@@ -348,6 +382,7 @@ export const fetchParentPortalData = async (
     payments,
     reportCard,
     notices,
+    achievements,
     lastSync: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   };
 };
@@ -427,6 +462,7 @@ function getEmptyPortalData(): ParentPortalData {
     payments: [],
     reportCard: null,
     notices: [],
+    achievements: [],
     lastSync: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   };
 }

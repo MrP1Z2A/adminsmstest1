@@ -198,6 +198,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
   const [reportCard, setReportCard] = useState<ReportCard | null>(null);
   const [dynamicReportCards, setDynamicReportCards] = useState<DynamicReportCard[]>([]);
   const [dynamicSchoolEvents, setDynamicSchoolEvents] = useState<any[]>([]);
+  const [dynamicAchievements, setDynamicAchievements] = useState<any[]>([]);
   const [dynamicStudentActivities, setDynamicStudentActivities] = useState<any[]>([]);
   const [dynamicLiveIntel, setDynamicLiveIntel] = useState<any[]>([]);
   const [selectedLiveIntel, setSelectedLiveIntel] = useState<any>(null);
@@ -426,6 +427,25 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                 content: intel.details?.log || 'No details available.',
                 attachment_url: intel.attachment_url,
                 date: intel.created_at ? new Date(intel.created_at).toLocaleTimeString() : 'Recent'
+              })));
+            }
+
+            // Fetch Achievements
+            const { data: achievementsData } = await supabase
+              .from('student_achievements')
+              .select('*')
+              .eq('student_id', user.studentId)
+              .eq('school_id', schoolId)
+              .order('achievement_date', { ascending: false });
+
+            if (achievementsData) {
+              setDynamicAchievements(achievementsData.map(ach => ({
+                id: ach.id,
+                title: ach.title,
+                desc: ach.description || ach.title,
+                icon: ach.icon || 'fa-award',
+                color: ach.color ? (ach.color.startsWith('text-') ? ach.color : `text-${ach.color}-500`) : 'text-emerald-500',
+                date: ach.achievement_date ? new Date(ach.achievement_date).toLocaleDateString() : 'Recent'
               })));
             }
           }
@@ -1743,17 +1763,23 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         <section className="lg:col-span-2 bg-white/10 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-10 rounded-[40px] border border-white/20 shadow-xl">
           <h3 className="text-xl font-black text-white uppercase tracking-tight mb-8">Achievements & Badges</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {STUDENT_ACHIEVEMENTS.map(ach => (
-              <div key={ach.id} className="p-8 bg-[#0a1a19] rounded-[40px] border border-white/20 text-center space-y-4 group hover:bg-[#4ea59d]/5 transition-all">
-                <div className={`w-20 h-20 mx-auto rounded-[28px] bg-[#0a1a19]/5 flex items-center justify-center text-4xl ${ach.color} group-hover:scale-110 transition-transform`}>
-                  <i className={`fa-solid ${ach.icon}`}></i>
+            {dynamicAchievements.length > 0 ? (
+              dynamicAchievements.map(ach => (
+                <div key={ach.id} className="p-8 bg-[#0a1a19] rounded-[40px] border border-white/20 text-center space-y-4 group hover:bg-[#4ea59d]/5 transition-all">
+                  <div className={`w-20 h-20 mx-auto rounded-[28px] bg-[#0a1a19]/5 flex items-center justify-center text-4xl ${ach.color} group-hover:scale-110 transition-transform`}>
+                    <i className={`fa-solid ${ach.icon}`}></i>
+                  </div>
+                  <div>
+                    <h4 className="text-base font-black text-white uppercase">{ach.title}</h4>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{ach.desc}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-base font-black text-white uppercase">{ach.title}</h4>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{ach.desc}</p>
-                </div>
+              ))
+            ) : (
+              <div className="sm:col-span-3 p-10 bg-[#0a1a19] rounded-[40px] border border-dashed border-[#1f4e4a] text-center">
+                <p className="text-sm text-slate-400">No achievements recorded yet. Keep pushing for excellence!</p>
               </div>
-            ))}
+            )}
           </div>
         </section>
       </div>

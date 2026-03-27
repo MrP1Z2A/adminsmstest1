@@ -97,17 +97,23 @@ const StudentHub: React.FC<StudentHubProps> = ({ studentNames, studentIds, schoo
                 <Trophy className="w-4 h-4 text-emerald-600" /> Merit &amp; Honors
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {MOCK_ACHIEVEMENTS.map(ach => (
-                  <div key={ach.id} className="bg-emerald-50/30 border border-emerald-100/50 p-5 rounded-[1.5rem] flex items-center gap-4 hover:bg-emerald-50 transition-all">
-                    <div className="bg-white p-3 rounded-2xl shadow-sm">
-                      <Award className="w-6 h-6 text-emerald-600" />
+                {data?.achievements && data.achievements.length > 0 ? (
+                  data.achievements.map(ach => (
+                    <div key={ach.id} className="bg-emerald-50/30 border border-emerald-100/50 p-5 rounded-[1.5rem] flex items-center gap-4 hover:bg-emerald-50 transition-all group">
+                      <div className="bg-white p-3 rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
+                        <Award className={`w-6 h-6 ${ach.color || 'text-emerald-600'}`} />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-slate-800 text-sm tracking-tight">{ach.title}</h4>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{ach.date || 'Recent'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-black text-slate-800 text-sm tracking-tight">{ach.title}</h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{ach.date}</p>
-                    </div>
+                  ))
+                ) : (
+                  <div className="sm:col-span-2 p-8 border-2 border-dashed border-slate-100 rounded-[1.5rem] text-center">
+                    <p className="text-slate-400 text-xs font-bold italic">No institutional honors recorded yet.</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>

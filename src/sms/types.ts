@@ -101,6 +101,7 @@ export type PageId =
   | 'student-service-batch'
   | 'events'
   | 'student-activities'
+  | 'student-achievements'
   | 'announcements-parent'
   | 'live-intel'
   | 'about-school';

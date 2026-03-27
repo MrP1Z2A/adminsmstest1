@@ -23,6 +23,7 @@ import LiveCalendar from './components/LiveCalendar';
 import HomeworkManager from './components/HomeworkManager';
 import AboutSchool from './components/AboutSchool';
 import ReportCardPage from './components/Reportcard';
+import StudentAchievements from './components/StudentAchievements';
 import ExamManagementPage from './components/exammangement.tsx';
 import NoticeBoard from './components/NoticeBoard';
 import NoticeDetailPage from './components/NoticeDetailPage';
@@ -3831,6 +3832,15 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
           {currentPage === 'report-card' && (
             <ReportCardPage schoolId={schoolId} />
+          )}
+
+          {currentPage === 'student-achievements' && (
+            <StudentAchievements 
+              schoolId={schoolId} 
+              students={allStudents.length > 0 ? allStudents : students}
+              notify={notify}
+              onConfirm={(message, action) => setConfirmDialog({ message, onConfirm: action })}
+            />
           )}
 
           {currentPage === 'payment' && (
