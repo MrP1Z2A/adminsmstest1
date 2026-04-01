@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  LayoutDashboard, UserCircle, BookOpen, Bell, LogOut, 
+  LayoutDashboard, UserCircle, Bell, LogOut, 
   Menu, X, School, ChevronRight, CreditCard, ChevronLeft,
   LayoutGrid
 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import StudentHub from './components/StudentHub';
 import InstitutionHub from './components/InstitutionHub';
+import logoIem from '../sms/src/LOGO_IEM.png';
 import Communications from './components/Communications';
 import Finance from './components/Finance';
 import LoginPage from './components/LoginPage';
@@ -54,8 +55,8 @@ const Sidebar = ({
         {/* Logo */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-800/60 shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="bg-emerald-600 p-2 rounded-xl text-white shadow-lg shadow-emerald-600/20">
-              <BookOpen className="w-5 h-5" />
+            <div className="w-10 h-10 bg-white p-1 rounded-xl shadow-lg shadow-emerald-600/20 overflow-hidden">
+              <img src={logoIem} alt="IEM Logo" className="w-full h-full object-contain" />
             </div>
             <span className="text-lg font-black bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
               EduParent

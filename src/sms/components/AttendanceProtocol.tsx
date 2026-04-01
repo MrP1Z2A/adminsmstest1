@@ -51,6 +51,7 @@ interface AttendanceProtocolProps {
   focusCourse?: { id: string; name: string; classId: string; className?: string } | null;
   openClassAttendancePage?: (classId: string) => void;
   onExitClassAttendancePage?: () => void;
+  teachers: Student[];
 }
 
 const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
@@ -89,6 +90,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
   openClassAttendancePage,
   onExitClassAttendancePage,
   schoolId,
+  teachers,
 }) => {
   const TIMETABLE_BUCKET = 'class_timetable';
   const COURSE_PROFILE_BUCKET = 'course_profile';
@@ -101,10 +103,11 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
   const [isTimetableUploading, setIsTimetableUploading] = React.useState(false);
   const [isTimetableLoading, setIsTimetableLoading] = React.useState(false);
   const [timetableFiles, setTimetableFiles] = React.useState<Array<{ name: string; path: string; url: string }>>([]);
-  const [classCourses, setClassCourses] = React.useState<Array<{ id: string; name: string; class_id: string; image_url?: string | null }>>([]);
+  const [classCourses, setClassCourses] = React.useState<Array<{ id: string; name: string; class_id: string; teacher_id?: string | null; image_url?: string | null }>>([]);
   const [isClassCoursesLoading, setIsClassCoursesLoading] = React.useState(false);
   const [isClassCourseImageSupported, setIsClassCourseImageSupported] = React.useState(true);
   const [isClassCourseCreating, setIsClassCourseCreating] = React.useState(false);
+  const [isCourseResourcesOpen, setIsCourseResourcesOpen] = React.useState(true);
   const [isCreateCourseModalOpen, setIsCreateCourseModalOpen] = React.useState(false);
   const [isEditCourseModalOpen, setIsEditCourseModalOpen] = React.useState(false);
   const [isClassCourseUpdating, setIsClassCourseUpdating] = React.useState(false);
@@ -119,7 +122,9 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
   const [newCourseError, setNewCourseError] = React.useState<string | null>(null);
   const [editCourseId, setEditCourseId] = React.useState<string | null>(null);
   const [editCourseName, setEditCourseName] = React.useState('');
+  const [editCourseTeacherId, setEditCourseTeacherId] = React.useState<string>('');
   const [editCourseCurrentImageUrl, setEditCourseCurrentImageUrl] = React.useState<string | null>(null);
+  const [newCourseTeacherId, setNewCourseTeacherId] = React.useState<string>('');
 
   const [confirmDialog, setConfirmDialog] = React.useState<{ message: string; onConfirm: () => Promise<void> } | null>(null);
   const [isConfirmActionSubmitting, setIsConfirmActionSubmitting] = React.useState(false);
@@ -493,36 +498,37 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
   }, [courseAttendanceOnly, focusCourse?.id, activeClassId, getAttachmentValueFromRow]);
 
   const loadFilesForCourseFolder = React.useCallback(async (folderName: string) => {
-    if (!courseFolderBasePath) return;
+    if (!activeClassId || !focusCourse?.id || !schoolId) return;
 
-    const folderPath = `${courseFolderBasePath}/${folderName}`;
-    const { data, error } = await supabase.storage
-      .from(COURSE_RESOURCES_BUCKET)
-      .list(folderPath, {
-        limit: 200,
-        sortBy: { column: 'updated_at', order: 'desc' },
-      });
+    try {
+      const { data, error } = await supabase
+        .from('resources_buckets')
+        .select('*')
+        .eq('school_id', schoolId)
+        .eq('class_id', activeClassId)
+        .eq('class_course_id', focusCourse.id)
+        .eq('metadata->>type', 'file')
+        .eq('metadata->>folder', folderName);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    const files = (data || [])
-      .filter((item: any) => item?.name && !isFolderMarker(String(item.name)) && !!item.id)
-      .map((item: any) => {
-        const fullPath = `${folderPath}/${item.name}`;
-        const { data: urlData } = supabase.storage.from(COURSE_RESOURCES_BUCKET).getPublicUrl(fullPath);
-        return {
-          name: String(item.name),
-          path: fullPath,
-          url: urlData?.publicUrl || '',
-          size: Number(item.metadata?.size || 0),
-        };
-      });
+      const files = (data || []).map((res: any) => ({
+        id: res.id,
+        name: res.name || 'Untitled File',
+        path: res.image_url || (res.metadata as any)?.file_url || '',
+        url: res.image_url || (res.metadata as any)?.file_url || '',
+        size: Number((res.metadata as any)?.size || 0),
+      }));
 
-    setCourseFolderFiles(prev => ({ ...prev, [folderName]: files }));
-  }, [courseFolderBasePath]);
+      setCourseFolderFiles(prev => ({ ...prev, [folderName]: files }));
+    } catch (error: any) {
+      console.error('Failed to load folder files from DB:', error);
+      notify(`Failed to load folder files: ${error?.message || 'Unknown error'}`);
+    }
+  }, [activeClassId, focusCourse, schoolId, notify]);
 
   const loadCourseFolders = React.useCallback(async () => {
-    if (!courseFolderBasePath || !schoolId) {
+    if (!activeClassId || !focusCourse?.id || !schoolId) {
       setCourseFolders([]);
       setOpenCourseFolders({});
       setCourseFolderFiles({});
@@ -533,41 +539,49 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
     setIsCourseFoldersLoading(true);
 
     try {
-      const { data, error } = await supabase.storage
-        .from(COURSE_RESOURCES_BUCKET)
-        .list(courseFolderBasePath, { limit: 200 });
+      // Fetch folders from resources_buckets instead of storage list
+      const { data, error } = await supabase
+        .from('resources_buckets')
+        .select('*')
+        .eq('school_id', schoolId)
+        .eq('class_id', activeClassId)
+        .eq('class_course_id', focusCourse.id)
+        .eq('metadata->>type', 'folder');
 
       if (error) throw error;
 
-      const folderNames = (data || [])
-        .filter((entry: any) => !entry?.id && entry?.name)
-        .map((entry: any) => String(entry.name));
-
+      const folderRecords = data || [];
       const nextFolders: Array<{ name: string; filesCount: number }> = [];
 
-      for (const folderName of folderNames) {
-        const folderPath = `${courseFolderBasePath}/${folderName}`;
-        const listResult = await supabase.storage
-          .from(COURSE_RESOURCES_BUCKET)
-          .list(folderPath, { limit: 200 });
+      for (const res of folderRecords) {
+        const folderName = res.name;
+        // Count files in this folder
+        const { count, error: countError } = await supabase
+          .from('resources_buckets')
+          .select('*', { count: 'exact', head: true })
+          .eq('school_id', schoolId)
+          .eq('class_id', activeClassId)
+          .eq('class_course_id', focusCourse.id)
+          .eq('metadata->>type', 'file')
+          .eq('metadata->>folder', folderName);
 
-        const filesCount = (listResult.data || []).filter((item: any) => item?.name && !isFolderMarker(String(item.name)) && !!item.id).length;
-        nextFolders.push({ name: folderName, filesCount });
+        if (countError) console.warn('Failed to count files for folder:', folderName, countError);
+        nextFolders.push({ name: folderName, filesCount: count || 0 });
       }
 
       nextFolders.sort((a, b) => a.name.localeCompare(b.name));
       setCourseFolders(nextFolders);
     } catch (error: any) {
-      console.error('Failed to load course folders:', error);
+      console.error('Failed to load course folders from DB:', error);
       notify(`Failed to load course folders: ${error?.message || 'Unknown error'}`);
       setCourseFolders([]);
     } finally {
       setIsCourseFoldersLoading(false);
     }
-  }, [courseFolderBasePath, notify]);
+  }, [activeClassId, focusCourse, schoolId, notify]);
 
   const createCourseFolder = React.useCallback(async () => {
-    if (!courseFolderBasePath) {
+    if (!activeClassId || !focusCourse?.id || !schoolId) {
       notify('Select class and course first.');
       return;
     }
@@ -580,44 +594,47 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
 
     setIsCourseFolderCreating(true);
     try {
-      const keepPath = `${courseFolderBasePath}/${normalizedName}/${FOLDER_MARKER_FILE}`;
+      // 1. Create a placeholder in storage (optional, but keep it for structure)
+      const keepPath = `course_folders/${activeClassId}/${focusCourse.id}/${normalizedName}/${FOLDER_MARKER_FILE}`;
       const marker = new Blob([new Uint8Array([37, 80, 68, 70])], { type: 'application/pdf' });
-      const { error } = await supabase.storage
+      await supabase.storage
         .from(COURSE_RESOURCES_BUCKET)
         .upload(keepPath, marker, {
           upsert: true,
           contentType: 'application/pdf',
         });
 
-      if (error) throw error;
-
-      // Log folder creation to resources_buckets
-
-
       const { data: publicUrlData } = supabase.storage.from(COURSE_RESOURCES_BUCKET).getPublicUrl(keepPath);
 
-      const { error: dbError } = await supabase.from('resources_buckets').insert([{
-        school_id: schoolId,
-        class_id: activeClassId,
-        class_course_id: focusCourse?.id,
-        name: normalizedName,
-        metadata: { type: 'folder', size: 0 },
-        image_url: publicUrlData?.publicUrl || null
-      }]);
-      if (dbError) {
-        console.warn('Failed to log folder creation in resources_buckets:', dbError);
-        throw dbError;
-      }
+      // 2. Insert folder record into resources_buckets
+      const { error: dbError } = await supabase
+        .from('resources_buckets')
+        .insert([{
+          school_id: schoolId,
+          class_id: activeClassId,
+          class_course_id: focusCourse.id,
+          name: normalizedName,
+          metadata: {
+            type: 'folder',
+            content: `Resource folder for ${focusCourse.name}`,
+            folder: null,
+            size: 0
+          },
+          image_url: publicUrlData?.publicUrl || null
+        }]);
+
+      if (dbError) throw dbError;
 
       setNewCourseFolderName('');
       await loadCourseFolders();
+      notify(`Folder "${normalizedName}" created.`);
     } catch (error: any) {
       console.error('Failed to create folder:', error);
       notify(`Failed to create folder: ${error?.message || 'Unknown error'}`);
     } finally {
       setIsCourseFolderCreating(false);
     }
-  }, [courseFolderBasePath, newCourseFolderName, loadCourseFolders, notify, schoolId]);
+  }, [activeClassId, focusCourse, schoolId, newCourseFolderName, loadCourseFolders, notify]);
 
   const toggleCourseFolderOpen = React.useCallback(async (folderName: string) => {
     const nextOpen = !openCourseFolders[folderName];
@@ -633,7 +650,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
   }, [openCourseFolders, loadFilesForCourseFolder, notify]);
 
   const uploadFilesToCourseFolder = React.useCallback(async (folderName: string, files: FileList | null) => {
-    if (!courseFolderBasePath || !files?.length) return;
+    if (!activeClassId || !focusCourse?.id || !schoolId || !files?.length) return;
 
     const selectedFiles = Array.from(files);
     const oversized = selectedFiles.find(file => file.size > 200 * 1024 * 1024);
@@ -646,71 +663,69 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
     try {
       for (const file of selectedFiles) {
         const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const path = `${courseFolderBasePath}/${folderName}/${Date.now()}-${sanitized}`;
-        const { error } = await supabase.storage
+        const path = `course_folders/${activeClassId}/${focusCourse.id}/${folderName}/${Date.now()}-${sanitized}`;
+        
+        const { error: uploadError } = await supabase.storage
           .from(COURSE_RESOURCES_BUCKET)
           .upload(path, file, {
             upsert: false,
             contentType: file.type || undefined,
           });
-        if (error) throw error;
-
-        // Log file upload to resources_buckets
-        let schoolId = selectedClass?.school_id;
-        if (!schoolId && activeClassId) {
-          const { data } = await supabase.from('classes').select('school_id').eq('id', activeClassId).maybeSingle();
-          schoolId = data?.school_id;
-        }
+        if (uploadError) throw uploadError;
 
         const { data: publicUrlData } = supabase.storage.from(COURSE_RESOURCES_BUCKET).getPublicUrl(path);
+        const publicUrl = publicUrlData?.publicUrl;
 
+        // Log file upload to resources_buckets with unified schema
         const { error: dbError } = await supabase.from('resources_buckets').insert([{
           school_id: schoolId,
           class_id: activeClassId,
-          class_course_id: focusCourse?.id,
+          class_course_id: focusCourse.id,
           name: file.name,
-          metadata: { type: 'file', size: file.size, mime_type: file.type, folder: folderName },
-          image_url: publicUrlData?.publicUrl || null
+          metadata: {
+            type: 'file',
+            content: `Learning material: ${file.name}`,
+            file_url: publicUrl,
+            folder: folderName,
+            size: file.size,
+            mime_type: file.type
+          },
+          image_url: publicUrl || null
         }]);
-        if (dbError) {
-          console.warn('Failed to log file upload in resources_buckets:', dbError);
-          throw dbError;
-        }
+
+        if (dbError) throw dbError;
       }
 
       await loadFilesForCourseFolder(folderName);
       await loadCourseFolders();
+      notify(`Uploaded ${selectedFiles.length} file(s) to "${folderName}".`);
     } catch (error: any) {
       console.error('Failed to upload files:', error);
       notify(`Failed to upload files: ${error?.message || 'Unknown error'}`);
     } finally {
       setUploadingCourseFolderName(null);
     }
-  }, [courseFolderBasePath, loadFilesForCourseFolder, loadCourseFolders, notify, activeClassId, focusCourse, schoolId]);
+  }, [activeClassId, focusCourse, schoolId, loadFilesForCourseFolder, loadCourseFolders, notify]);
 
   const deleteCourseFolder = async (folderName: string) => {
     openConfirmDialog(`Are you sure you want to delete folder "${folderName}" and all its contents?`, async () => {
       setIsConfirmActionSubmitting(true);
       try {
-        const folderPath = `${courseFolderBasePath}/${folderName}`;
+        // 1. Delete records from database
+        await supabase
+          .from('resources_buckets')
+          .delete()
+          .eq('school_id', schoolId)
+          .eq('class_id', activeClassId)
+          .eq('class_course_id', focusCourse?.id)
+          .or(`name.eq."${folderName}",metadata->>folder.eq."${folderName}"`);
+
+        // 2. Clean up storage (optional, but good practice)
+        const folderPath = `course_folders/${activeClassId}/${focusCourse?.id}/${folderName}`;
         const listResult = await supabase.storage.from(COURSE_RESOURCES_BUCKET).list(folderPath, { limit: 1000 });
         const filesToDelete = (listResult.data || []).map(f => `${folderPath}/${f.name}`);
         if (filesToDelete.length > 0) {
-          const { error: storageError } = await supabase.storage.from(COURSE_RESOURCES_BUCKET).remove(filesToDelete);
-          if (storageError) throw storageError;
-        }
-
-        if (activeClassId && focusCourse) {
-          await supabase.from('resources_buckets').delete()
-            .eq('class_id', activeClassId)
-            .eq('class_course_id', focusCourse.id)
-            .eq('name', folderName)
-            .eq('metadata->>type', 'folder');
-
-          await supabase.from('resources_buckets').delete()
-            .eq('class_id', activeClassId)
-            .eq('class_course_id', focusCourse.id)
-            .eq('metadata->>folder', folderName);
+          await supabase.storage.from(COURSE_RESOURCES_BUCKET).remove(filesToDelete);
         }
 
         await loadCourseFolders();
@@ -729,18 +744,19 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
     openConfirmDialog(`Are you sure you want to delete file "${file.name}"?`, async () => {
       setIsConfirmActionSubmitting(true);
       try {
-        const { error: storageError } = await supabase.storage.from(COURSE_RESOURCES_BUCKET).remove([file.path]);
-        if (storageError) throw storageError;
+        // 1. Delete record from database
+        await supabase
+          .from('resources_buckets')
+          .delete()
+          .eq('school_id', schoolId)
+          .eq('class_id', activeClassId)
+          .eq('class_course_id', focusCourse?.id)
+          .eq('name', file.name)
+          .eq('metadata->>folder', folderName);
 
-        if (activeClassId && focusCourse) {
-          await supabase.from('resources_buckets').delete()
-            .eq('class_id', activeClassId)
-            .eq('class_course_id', focusCourse.id)
-            .eq('school_id', schoolId)
-            .eq('name', file.name)
-            .eq('metadata->>type', 'file')
-            .eq('metadata->>folder', folderName);
-        }
+        // 2. Delete from storage (optional, but good practice - logic uses url/path)
+        // Note: we might not have the original storage path easily, but image_url/file_url can help
+        // For now, focusing on the record deletion as it's the source of truth for the UI
 
         await loadFilesForCourseFolder(folderName);
         await loadCourseFolders();
@@ -832,7 +848,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
       if (isClassCourseImageSupported) {
         const result = await supabase
           .from(CLASS_COURSES_TABLE)
-          .select('id, name, class_id, image_url')
+          .select('id, name, class_id, image_url, teacher_id')
           .eq('class_id', classId)
           .order('created_at', { ascending: false });
         data = result.data;
@@ -842,7 +858,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
           setIsClassCourseImageSupported(false);
           const fallbackResult = await supabase
             .from(CLASS_COURSES_TABLE)
-            .select('id, name, class_id')
+            .select('id, name, class_id, teacher_id')
             .eq('class_id', classId)
             .order('created_at', { ascending: false });
           data = fallbackResult.data;
@@ -865,6 +881,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
         name: String(course.name || ''),
         class_id: String(course.class_id),
         image_url: course.image_url || null,
+        teacher_id: course.teacher_id || null,
       })));
     } catch (error: any) {
       console.error('Failed to load class courses:', error);
@@ -1042,9 +1059,10 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
               class_id: activeClassId,
               name: newCourseName.trim(),
               image_url: imageUrl,
+              teacher_id: newCourseTeacherId || null,
             },
           ])
-          .select('id, name, class_id, image_url')
+          .select('id, name, class_id, image_url, teacher_id')
           .maybeSingle();
         data = result.data;
         error = result.error;
@@ -1057,9 +1075,10 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
               {
                 class_id: activeClassId,
                 name: newCourseName.trim(),
+                teacher_id: newCourseTeacherId || null,
               },
             ])
-            .select('id, name, class_id')
+            .select('id, name, class_id, teacher_id')
             .maybeSingle();
           data = fallbackResult.data;
           error = fallbackResult.error;
@@ -1071,9 +1090,10 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
             {
               class_id: activeClassId,
               name: newCourseName.trim(),
+              teacher_id: newCourseTeacherId || null,
             },
           ])
-          .select('id, name, class_id')
+          .select('id, name, class_id, teacher_id')
           .maybeSingle();
         data = result.data;
         error = result.error;
@@ -1081,12 +1101,13 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
 
       if (error) throw error;
 
-      const createdCourseData = data || { id: 'temp-' + Date.now(), name: newCourseName.trim(), class_id: activeClassId };
+      const createdCourseData = data || { id: 'temp-' + Date.now(), name: newCourseName.trim(), class_id: activeClassId, teacher_id: newCourseTeacherId };
       const createdCourse = {
         id: String(createdCourseData.id),
         name: String(createdCourseData.name || ''),
         class_id: String(createdCourseData.class_id),
         image_url: createdCourseData.image_url || imageUrl || null,
+        teacher_id: createdCourseData.teacher_id || null,
       };
 
       setClassCourses(prev => [createdCourse, ...prev]);
@@ -1103,9 +1124,10 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
     }
   };
 
-  const openEditCourseModal = (course: { id: string; name: string; image_url?: string | null }) => {
+  const openEditCourseModal = (course: { id: string; name: string; image_url?: string | null; teacher_id?: string | null }) => {
     setEditCourseId(course.id);
     setEditCourseName(course.name);
+    setEditCourseTeacherId(course.teacher_id || '');
     setEditCourseCurrentImageUrl(course.image_url || null);
     setEditCourseImage(null);
     setEditCourseError(null);
@@ -1148,6 +1170,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
           .update({
             name: editCourseName.trim(),
             image_url: imageUrl,
+            teacher_id: editCourseTeacherId || null,
           })
           .eq('id', editCourseId)
           .eq('class_id', activeClassId);
@@ -1183,6 +1206,7 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
           ...course,
           name: editCourseName.trim(),
           image_url: isClassCourseImageSupported ? imageUrl : (course.image_url || imageUrl),
+          teacher_id: editCourseTeacherId || null,
         };
       }));
 
@@ -1842,118 +1866,128 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
                   </div>
 
                   <div className="bg-white dark:bg-slate-900 rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 border border-slate-100 dark:border-slate-800 shadow-premium">
-                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Course Folders</p>
+                    <button
+                      onClick={() => setIsCourseResourcesOpen(prev => !prev)}
+                      className="w-full flex flex-wrap items-center justify-between gap-3 mb-3 group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <i className={`fas fa-chevron-right text-[10px] transition-transform ${isCourseResourcesOpen ? 'rotate-90 text-brand-500' : 'text-slate-400'}`}></i>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-brand-500 transition-colors">Course Folders</p>
+                      </div>
                       <span className="text-[10px] font-black uppercase tracking-widest text-brand-500">{courseFolders.length} Folders</span>
-                    </div>
+                    </button>
 
-                    <div className="flex flex-wrap items-center gap-2 mb-4">
-                      <input
-                        value={newCourseFolderName}
-                        onChange={event => setNewCourseFolderName(event.target.value)}
-                        placeholder="Folder name"
-                        className="flex-1 min-w-[200px] bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold"
-                      />
-                      <button
-                        onClick={() => void createCourseFolder()}
-                        disabled={isCourseFolderCreating}
-                        className="px-3 py-2 rounded-xl bg-brand-500 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-60"
-                      >
-                        {isCourseFolderCreating ? 'Creating...' : 'Create Folder'}
-                      </button>
-                    </div>
+                    {isCourseResourcesOpen && (
+                      <>
+                        <div className="flex flex-wrap items-center gap-2 mb-4">
+                          <input
+                            value={newCourseFolderName}
+                            onChange={event => setNewCourseFolderName(event.target.value)}
+                            placeholder="Folder name"
+                            className="flex-1 min-w-[200px] bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+                          />
+                          <button
+                            onClick={() => void createCourseFolder()}
+                            disabled={isCourseFolderCreating}
+                            className="px-3 py-2 rounded-xl bg-brand-500 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-60"
+                          >
+                            {isCourseFolderCreating ? 'Creating...' : 'Create Folder'}
+                          </button>
+                        </div>
 
-                    {isCourseFoldersLoading ? (
-                      <p className="text-xs font-semibold text-slate-500">Loading course folders...</p>
-                    ) : courseFolders.length === 0 ? (
-                      <p className="text-xs font-semibold text-slate-500">No folders created yet for this course.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {courseFolders.map(folder => {
-                          const isOpen = Boolean(openCourseFolders[folder.name]);
-                          const files = courseFolderFiles[folder.name] || [];
-                          const inputId = `course-folder-upload-${folder.name}`;
+                        {isCourseFoldersLoading ? (
+                          <p className="text-xs font-semibold text-slate-500">Loading course folders...</p>
+                        ) : courseFolders.length === 0 ? (
+                          <p className="text-xs font-semibold text-slate-500">No folders created yet for this course.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {courseFolders.map(folder => {
+                              const isOpen = Boolean(openCourseFolders[folder.name]);
+                              const files = courseFolderFiles[folder.name] || [];
+                              const inputId = `course-folder-upload-${folder.name}`;
 
-                          return (
-                            <div key={folder.name} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 overflow-hidden">
-                              <div className="flex items-center justify-between gap-2 p-3">
-                                <button
-                                  onClick={() => void toggleCourseFolderOpen(folder.name)}
-                                  className="min-w-0 flex items-center gap-2 text-left"
-                                >
-                                  <i className={`fas fa-chevron-right text-[10px] transition-transform ${isOpen ? 'rotate-90 text-brand-500' : 'text-slate-400'}`}></i>
-                                  <i className="fas fa-folder text-amber-500 text-xs"></i>
-                                  <span className="text-xs font-black truncate">{folder.name}</span>
-                                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{folder.filesCount}</span>
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); void deleteCourseFolder(folder.name); }}
-                                  className="mx-2 px-2 py-1 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-100 text-[10px] font-black uppercase tracking-widest transition-colors"
-                                >
-                                  Del
-                                </button>
+                              return (
+                                <div key={folder.name} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 overflow-hidden">
+                                  <div className="flex items-center justify-between gap-2 p-3">
+                                    <button
+                                      onClick={() => void toggleCourseFolderOpen(folder.name)}
+                                      className="min-w-0 flex items-center gap-2 text-left"
+                                    >
+                                      <i className={`fas fa-chevron-right text-[10px] transition-transform ${isOpen ? 'rotate-90 text-brand-500' : 'text-slate-400'}`}></i>
+                                      <i className="fas fa-folder text-amber-500 text-xs"></i>
+                                      <span className="text-xs font-black truncate">{folder.name}</span>
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{folder.filesCount}</span>
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); void deleteCourseFolder(folder.name); }}
+                                      className="mx-2 px-2 py-1 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-100 text-[10px] font-black uppercase tracking-widest transition-colors"
+                                    >
+                                      Del
+                                    </button>
 
-                                <button
-                                  onClick={() => courseFolderUploadRefs.current[inputId]?.click()}
-                                  disabled={uploadingCourseFolderName === folder.name}
-                                  className="px-2.5 py-1.5 rounded-lg bg-brand-500 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-60"
-                                >
-                                  {uploadingCourseFolderName === folder.name ? 'Uploading...' : 'Add File'}
-                                </button>
+                                    <button
+                                      onClick={() => courseFolderUploadRefs.current[inputId]?.click()}
+                                      disabled={uploadingCourseFolderName === folder.name}
+                                      className="px-2.5 py-1.5 rounded-lg bg-brand-500 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-60"
+                                    >
+                                      {uploadingCourseFolderName === folder.name ? 'Uploading...' : 'Add File'}
+                                    </button>
 
-                                <input
-                                  id={inputId}
-                                  ref={node => {
-                                    courseFolderUploadRefs.current[inputId] = node;
-                                  }}
-                                  type="file"
-                                  accept={FOLDER_FILE_ACCEPT}
-                                  multiple
-                                  className="hidden"
-                                  onChange={event => {
-                                    void uploadFilesToCourseFolder(folder.name, event.target.files);
-                                    event.target.value = '';
-                                  }}
-                                />
-                              </div>
+                                    <input
+                                      id={inputId}
+                                      ref={node => {
+                                        courseFolderUploadRefs.current[inputId] = node;
+                                      }}
+                                      type="file"
+                                      accept={FOLDER_FILE_ACCEPT}
+                                      multiple
+                                      className="hidden"
+                                      onChange={event => {
+                                        void uploadFilesToCourseFolder(folder.name, event.target.files);
+                                        event.target.value = '';
+                                      }}
+                                    />
+                                  </div>
 
-                              {isOpen && (
-                                <div className="px-3 pb-3 border-t border-slate-200 dark:border-slate-700 pt-2 space-y-2">
-                                  {files.length === 0 ? (
-                                    <p className="text-[11px] font-semibold text-slate-500">No files yet.</p>
-                                  ) : (
-                                    files.map(file => (
-                                      <div
-                                        key={file.path}
-                                        className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white dark:bg-slate-900 group"
-                                      >
-                                        <button
-                                          type="button"
-                                          onClick={() => void downloadFileDirectly(file.url, file.name)}
-                                          className="flex-1 text-left min-w-0 flex items-center gap-2"
-                                        >
-                                          <span className="text-[11px] font-black text-brand-500 truncate hover:underline">{file.name}</span>
-                                        </button>
-                                        <div className="flex items-center gap-2 shrink-0">
-                                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                            {file.size > 0 ? `${Math.max(1, Math.round(file.size / 1024))}KB` : 'File'}
-                                          </span>
-                                          <button
-                                            onClick={(e) => { e.stopPropagation(); void deleteCourseFile(folder.name, file); }}
-                                            className="px-2 py-1 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-100 text-[10px] font-black uppercase transition-colors opacity-0 group-hover:opacity-100"
+                                  {isOpen && (
+                                    <div className="px-3 pb-3 border-t border-slate-200 dark:border-slate-700 pt-2 space-y-2">
+                                      {files.length === 0 ? (
+                                        <p className="text-[11px] font-semibold text-slate-500">No files yet.</p>
+                                      ) : (
+                                        files.map(file => (
+                                          <div
+                                            key={file.path}
+                                            className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white dark:bg-slate-900 group"
                                           >
-                                            Del
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ))
+                                            <button
+                                              type="button"
+                                              onClick={() => void downloadFileDirectly(file.url, file.name)}
+                                              className="flex-1 text-left min-w-0 flex items-center gap-2"
+                                            >
+                                              <span className="text-[11px] font-black text-brand-500 truncate hover:underline">{file.name}</span>
+                                            </button>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                                {file.size > 0 ? `${Math.max(1, Math.round(file.size / 1024))}KB` : 'File'}
+                                              </span>
+                                              <button
+                                                onClick={(e) => { e.stopPropagation(); void deleteCourseFile(folder.name, file); }}
+                                                className="px-2 py-1 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-100 text-[10px] font-black uppercase transition-colors opacity-0 group-hover:opacity-100"
+                                              >
+                                                Del
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
                                   )}
                                 </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </>
@@ -2109,7 +2143,15 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
                         </div>
                       ) : null}
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Course</p>
-                      <p className="text-sm font-black text-brand-500 mt-1 line-clamp-3">{course.name}</p>
+                      <p className="text-sm font-black text-brand-500 mt-1 line-clamp-1">{course.name}</p>
+                      {course.teacher_id && (
+                        <div className="mt-1 flex items-center gap-1.5 overflow-hidden">
+                          <i className="fas fa-chalkboard-teacher text-[10px] text-slate-400"></i>
+                          <span className="text-[10px] font-bold text-slate-500 truncate">
+                            {teachers.find(t => String(t.id) === String(course.teacher_id))?.name || 'Assigned Teacher'}
+                          </span>
+                        </div>
+                      )}
                       </button>
                     </div>
                   ))}
@@ -2152,6 +2194,20 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
                   {newCourseError && (
                     <p className="text-xs font-bold text-rose-500">{newCourseError}</p>
                   )}
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned Teacher</label>
+                  <select
+                    value={newCourseTeacherId}
+                    onChange={(e) => setNewCourseTeacherId(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border-2 border-transparent focus:border-brand-500 outline-none font-bold"
+                  >
+                    <option value="">No Teacher Assigned</option>
+                    {teachers.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="space-y-3">
@@ -2246,6 +2302,20 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
                     placeholder="Enter course name"
                     className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border-2 border-transparent focus:border-brand-500 outline-none font-bold"
                   />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned Teacher</label>
+                  <select
+                    value={editCourseTeacherId}
+                    onChange={(e) => setEditCourseTeacherId(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border-2 border-transparent focus:border-brand-500 outline-none font-bold"
+                  >
+                    <option value="">No Teacher Assigned</option>
+                    {teachers.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="space-y-3">

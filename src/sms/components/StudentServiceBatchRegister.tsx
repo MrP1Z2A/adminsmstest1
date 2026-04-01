@@ -88,34 +88,36 @@ const StudentServiceBatchRegister: React.FC<StudentServiceBatchRegisterProps> = 
             <p className="font-bold">No student service staff registered yet.</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {studentServiceStaff.slice(0, 10).map((staff) => (
-              <div
-                key={staff.id}
-                className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 flex items-center justify-center overflow-hidden">
-                    {staff.avatar ? (
-                      <img src={staff.avatar} alt={staff.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <i className="fas fa-user-tie text-cyan-500 text-sm"></i>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm font-black">{staff.name}</p>
-                    <p className="text-xs text-slate-400 font-semibold">{staff.email}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => deleteEntity(staff.id, 'student-service')}
-                  className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-all text-sm"
-                  title="Remove staff"
+          <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-3">
+              {studentServiceStaff.map((staff) => (
+                <div
+                  key={staff.id}
+                  className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all"
                 >
-                  <i className="fas fa-times"></i>
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 flex items-center justify-center overflow-hidden">
+                      {staff.avatar ? (
+                        <img src={staff.avatar} alt={staff.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <i className="fas fa-user-tie text-cyan-500 text-sm"></i>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-black">{staff.name}</p>
+                      <p className="text-xs text-slate-400 font-semibold">{staff.email}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => deleteEntity(staff.id, 'student-service')}
+                    className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-all text-sm"
+                    title="Remove staff"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

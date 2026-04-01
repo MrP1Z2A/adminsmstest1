@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { fetchParentPortalData, ParentPortalData } from '../services/smsService';
 import { MOCK_STUDENT, MOCK_ACHIEVEMENTS } from '../constants';
+
 import { Trophy, Mail, Hash, User, MapPin, Award, BookOpen, Clock, RefreshCw, ShieldCheck, Activity } from 'lucide-react';
 
 interface StudentHubProps {
@@ -67,9 +68,20 @@ const StudentHub: React.FC<StudentHubProps> = ({ studentNames, studentIds, schoo
               <p className="text-emerald-600 font-black uppercase text-xs tracking-[0.2em] mt-2">Student ID: {studentId}</p>
             </div>
             <div className="pb-2">
-              <button className="px-7 py-3.5 bg-slate-900 text-white font-black rounded-2xl hover:bg-emerald-600 transition-all shadow-xl active:scale-95 text-[10px] uppercase tracking-widest flex items-center gap-2">
-                <BookOpen className="w-4 h-4" /> Download Report Card
-              </button>
+              {reportCard?.file_url ? (
+                <a
+                  href={reportCard.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-7 py-3.5 bg-slate-900 text-white font-black rounded-2xl hover:bg-emerald-600 transition-all shadow-xl active:scale-95 text-[10px] uppercase tracking-widest flex items-center gap-2"
+                >
+                  <BookOpen className="w-4 h-4" /> Download {reportCard.file_name || reportCard.title || 'Report Card'}
+                </a>
+              ) : (
+                <button disabled className="px-7 py-3.5 bg-slate-200 text-slate-400 font-black rounded-2xl text-[10px] uppercase tracking-widest flex items-center gap-2 cursor-not-allowed">
+                  <BookOpen className="w-4 h-4" /> No File Available
+                </button>
+              )}
             </div>
           </div>
 

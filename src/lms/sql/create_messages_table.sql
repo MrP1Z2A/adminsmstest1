@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.messages (
     content TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     read_at TIMESTAMPTZ,
-    school_id UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+    school_id TEXT NOT NULL,
     
     CONSTRAINT different_users CHECK (sender_id <> receiver_id)
 );

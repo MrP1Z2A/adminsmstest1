@@ -1,0 +1,170 @@
+diff --git a/src/lms/App.tsx b/src/lms/App.tsx
+index 9042e09..2e31419 100644
+--- a/src/lms/App.tsx
++++ b/src/lms/App.tsx
+@@ -1,5 +1,5 @@
+ 
+-import React, { useState, useEffect, useCallback } from 'react';
++import React, { useState, useEffect, useCallback, useRef } from 'react';
+ import Sidebar from './components/Sidebar';
+ import Login from './components/Login';
+ import COURSES from './components/ClassandCoursesmanager';
+@@ -34,8 +34,8 @@ type NoticeBoardRow = {
+ 
+ type DynamicReportCard = {
+   id: string;
+-  title: string | null;
+-  reportDate: string | null;
++  title: string;
++  reportDate: string;
+   reportType: string | null;
+   filePath: string | null;
+   fileName: string | null;
+@@ -216,6 +216,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
+     onConfirm: () => void;
+     type?: 'confirm' | 'info';
+   } | null>(null);
++  const [uploadingAvatar, setUploadingAvatar] = useState(false);
++  const fileInputRef = useRef<HTMLInputElement>(null);
+ 
+   const hasNewNotices = dynamicAnnouncements.some(notice => !viewedNoticeIds.includes(notice.id));
+ 
+@@ -361,7 +363,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
+                 }
+                 return {
+                   id: rc.id,
+-                  title: rc.title || rc.file_name || 'Official Report Card',
++                  title: rc.file_name || rc.title || 'Official Report Card',
+                   reportDate: rc.report_date ? new Date(rc.report_date).toLocaleDateString() : 'N/A',
+                   reportType: rc.report_type,
+                   filePath: rc.file_path,
+@@ -474,7 +476,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
+ 
+     let studentQuery = supabase
+       .from('students')
+-      .select('id, name, avatar, email, attendanceRate, school_id, date_of_birth, parent_name, parent_number, parent_email')
++      .select('id, name, avatar, email, attendanceRate, school_id, date_of_birth, parent_name, parent_number, parent_email, phone, address')
+       .or(`email.eq.${user.email},name.eq.${user.email}`);
+ 
+     if (schoolId) {
+@@ -521,7 +523,9 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
+       grade: grade,
+       parentName: student.parent_name || undefined,
+       parentPhone: student.parent_number || undefined,
+-      parentEmail: student.parent_email || undefined
++      parentEmail: student.parent_email || undefined,
++      phone: student.phone || undefined,
++      address: student.address || undefined
+     }));
+   }, [isLoggedIn, user.email, schoolId]);
+ 
+@@ -632,6 +636,53 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
+     }
+   };
+ 
++  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
++    const file = event.target.files?.[0];
++    if (!file || !user.studentId || !supabase) return;
++
++    // Validate file type
++    if (!file.type.startsWith('image/')) {
++      alert('Please select an image file.');
++      return;
++    }
++
++    // Validate file size (max 5MB)
++    if (file.size > 5 * 1024 * 1024) {
++      alert('File size exceeds 5MB limit.');
++      return;
++    }
++
++    setUploadingAvatar(true);
++    try {
++      const fileExt = file.name.split('.').pop();
++      const fileName = `${user.studentId}_${Date.now()}.${fileExt}`;
++      const filePath = `avatars/${fileName}`;
++
++      const { error: uploadError } = await supabase.storage
++        .from('student_profile')
++        .upload(filePath, file);
++
++      if (uploadError) throw uploadError;
++
++      const { error: updateError } = await supabase
++        .from('students')
++        .update({ avatar: filePath })
++        .eq('id', user.studentId);
++
++      if (updateError) throw updateError;
++
++      // Refresh student profile
++      await loadStudentProfile();
++      alert('Profile picture updated successfully!');
++    } catch (err: any) {
++      console.error('Error uploading avatar:', err);
++      alert('Failed to upload profile picture: ' + err.message);
++    } finally {
++      setUploadingAvatar(false);
++      if (fileInputRef.current) fileInputRef.current.value = '';
++    }
++  };
++
+   const handleLogout = () => {
+     setIsLoggedIn(false);
+     setUser(INITIAL_USER);
+@@ -1722,7 +1773,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
+           <h3 className="text-xl font-black text-white uppercase tracking-tight mb-8 flex items-center gap-4">
+             <i className="fa-solid fa-file-pdf text-[#4ea59d]"></i> Official Report Cards
+           </h3>
+-          <div className="max-h-[300px] overflow-y-auto pr-4 custom-scrollbar">
++          <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-4">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4">
+               {dynamicReportCards.length === 0 ? (
+                 <div className="md:col-span-2 p-10 bg-[#0a1a19] rounded-[32px] border border-dashed border-[#1f4e4a] text-center">
+@@ -2077,7 +2128,26 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
+             <div className="bg-white/10 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-6 md:p-10 rounded-[32px] md:rounded-[40px] border border-white/20 max-w-4xl shadow-2xl relative overflow-hidden">
+               <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-start relative z-10">
+                 <div className="flex flex-col items-center gap-4">
+-                  <img src={user.avatar} className="w-32 h-32 md:w-40 md:h-40 rounded-[24px] md:rounded-[40px] border-4 border-[#4ea59d] p-1 shadow-2xl object-cover" />
++                  <div className="relative group">
++                    <img src={user.avatar} className="w-32 h-32 md:w-40 md:h-40 rounded-[24px] md:rounded-[40px] border-4 border-[#4ea59d] p-1 shadow-2xl object-cover" />
++                    <button 
++                      onClick={() => fileInputRef.current?.click()}
++                      disabled={uploadingAvatar}
++                      className="absolute inset-0 bg-black/40 rounded-[24px] md:rounded-[40px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
++                    >
++                      <div className="text-center">
++                        <i className={`fa-solid ${uploadingAvatar ? 'fa-spinner animate-spin' : 'fa-camera'} text-2xl mb-1`}></i>
++                        <p className="text-[10px] font-black uppercase tracking-widest">{uploadingAvatar ? 'Uploading...' : 'Change Photo'}</p>
++                      </div>
++                    </button>
++                    <input 
++                      type="file" 
++                      ref={fileInputRef} 
++                      onChange={handleAvatarUpload} 
++                      className="hidden" 
++                      accept="image/*"
++                    />
++                  </div>
+                   <div className="px-4 py-2 bg-[#4ea59d]/20 rounded-xl border border-[#4ea59d]/30 text-center">
+                     <p className="text-[10px] font-black text-[#4ea59d] uppercase">Attendance</p>
+                     <p className="text-xl font-black text-white">{studentAttendanceRate}</p>
+@@ -2114,6 +2184,18 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
+                       </p>
+                       <p className="text-sm font-bold text-slate-200">{user.dob ? new Date(user.dob).toLocaleDateString() : 'N/A'}</p>
+                     </div>
++                    <div className="space-y-1">
++                      <p className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-2">
++                        <i className="fa-solid fa-phone text-[#4ea59d]"></i> Student Phone
++                      </p>
++                      <p className="text-sm font-bold text-slate-200">{user.phone || 'N/A'}</p>
++                    </div>
++                    <div className="space-y-1 md:col-span-2 lg:col-span-2">
++                      <p className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-2">
++                        <i className="fa-solid fa-location-dot text-[#4ea59d]"></i> Residential Address
++                      </p>
++                      <p className="text-sm font-bold text-slate-200 break-words">{user.address || 'N/A'}</p>
++                    </div>
+                   </div>
+ 
+                   <div className="pt-6 border-t border-white/5">

@@ -120,6 +120,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <SidebarSubItem id="events" label="Events" activePage={currentPage} />
           <SidebarSubItem id="student-activities" label="Student Activities" activePage={currentPage} />
           <SidebarSubItem id="announcements-parent" label="Announcements For Parent" activePage={currentPage} />
+          <SidebarSubItem id="class-announcements" label="Class Announcements" activePage={currentPage} />
           <SidebarSubItem id="live-intel" label="Live Intel" activePage={currentPage} />
         </SidebarMenuItem>
         <SidebarMenuItem icon="fa-money-bill-wave" label="Payment" activePage={currentPage} hasDropdown>

@@ -4,11 +4,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UserRole } from '../types';
 // Import Supabase client and configuration flag for authentication checks.
 import { isSupabaseConfigured, supabase } from '../src/supabaseClient';
+import logoIem from '../../sms/src/LOGO_IEM.png';
 
 // Define props accepted by the Login component.
 interface LoginProps {
   // Callback used after successful auth for STUDENT or TEACHER roles.
-  onLogin: (role: Exclude<UserRole, UserRole.PARENT>, email: string, schoolId?: string, authUserId?: string) => void;
+  onLogin: (role: Exclude<UserRole, UserRole.PARENT>, email: string, schoolId?: string, recordId?: string, authUserId?: string) => void;
 }
 
 // Create a typed functional component and extract onLogin from props.
@@ -72,13 +73,29 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       // Stop if query fails.
       if (studentError) throw studentError;
 
-      // Reject when no matching student record exists.
-      if (!student) {
-        throw new Error('Invalid name/email or temporary password');
+      // Successful match logs in as student.
+      if (student) {
+        onLogin(UserRole.STUDENT, student.email || student.name, student.school_id || undefined, student.id, student.auth_user_id || undefined);
+        return;
       }
 
-      // Successful match logs in as student.
-      onLogin(UserRole.STUDENT, student.email || student.name, student.school_id || undefined, student.auth_user_id || student.id);
+      // If no student found, try matching teacher credentials from teachers table.
+      const { data: teacher, error: teacherError } = await supabase
+        .from('teachers')
+        .select('id, auth_user_id, name, email, temp_password, school_id')
+        .or(`name.eq.${identifier},email.eq.${identifier}`)
+        .eq('temp_password', password)
+        .maybeSingle();
+
+      if (teacherError) throw teacherError;
+
+      if (teacher) {
+        onLogin(UserRole.TEACHER, teacher.email || teacher.name, teacher.school_id || undefined, teacher.id, teacher.auth_user_id || undefined);
+        return;
+      }
+
+      // Reject when no matching student or teacher record exists.
+      throw new Error('Invalid name/email or temporary password');
     } catch (err: any) {
       // Display known error message or fallback generic auth error.
       setError(err.message || 'Authentication failed');
@@ -115,8 +132,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       <div className="relative z-10 w-full max-w-[400px] px-6">
         {/* Brand block with icon, title, and subtitle */}
         <div className="flex flex-col items-center mb-10 text-center">
-          <div className="w-20 h-20 bg-[#4ea59d] rounded-[28px] flex items-center justify-center shadow-2xl mb-6">
-            <i className="fa-solid fa-graduation-cap text-4xl text-white"></i>
+          <div className="w-24 h-24 bg-white rounded-[32px] flex items-center justify-center p-2 shadow-2xl mb-6 overflow-hidden">
+            <img src={logoIem} alt="IEM Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-5xl font-black tracking-tighter text-white uppercase ">
             IEM

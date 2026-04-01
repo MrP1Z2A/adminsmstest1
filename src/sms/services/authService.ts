@@ -22,6 +22,25 @@ export const authService = {
   },
 
   /**
+   * Special signup for staff members with school context
+   */
+  async signUpStaff(email: string, password: string, role: UserRole, schoolId?: string) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          role: role,
+          school_id: schoolId,
+        },
+      },
+    });
+
+    if (error) throw error;
+    return data?.user?.id || null;
+  },
+
+  /**
    * Sign in an existing user
    */
   async signIn(email: string, password: string) {

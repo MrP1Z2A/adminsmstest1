@@ -168,6 +168,7 @@ interface EnrollmentModalProps {
     secondaryParentCountryCode: string;
     secondaryParentNumber: string;
     secondaryParentEmail: string;
+    studentCountryCode: string;
     phone: string;
     address: string;
   };
@@ -303,6 +304,29 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
                   onChange={(e) => setEnrollData({ ...enrollData, email: e.target.value })}
                 />
                 {!isStudentEmailValid && <p className="mt-2 text-[11px] font-bold text-rose-500">Enter a valid email format (example@domain.com).</p>}
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-3">Student Phone Number</label>
+                <div className="flex gap-3">
+                  <select
+                    className="w-40 bg-slate-50 dark:bg-slate-800 p-6 rounded-3xl outline-none border-2 border-transparent focus:border-brand-500 font-bold transition-all"
+                    value={enrollData.studentCountryCode}
+                    onChange={(e) => setEnrollData({ ...enrollData, studentCountryCode: e.target.value })}
+                  >
+                    {COUNTRY_CODES.map((code) => (
+                      <option key={code} value={code.split(' ')[0]}>{code}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="Enter student phone number..."
+                    className="flex-1 bg-slate-50 dark:bg-slate-800 p-6 rounded-3xl outline-none border-2 border-transparent focus:border-brand-500 font-bold transition-all"
+                    value={enrollData.phone}
+                    onChange={(e) => setEnrollData({ ...enrollData, phone: e.target.value.replace(/\D/g, '') })}
+                  />
+                </div>
               </div>
             </>
           )}
@@ -515,17 +539,10 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
               </div>
 
               <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-3">Student Phone & Address</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-3">Residential Address</label>
                 <div className="space-y-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                  <input
-                    type="tel"
-                    placeholder="Student Phone Number"
-                    className="w-full bg-white dark:bg-slate-900 p-4 rounded-2xl outline-none border border-transparent focus:border-brand-500 font-bold transition-all"
-                    value={enrollData.phone}
-                    onChange={(e) => setEnrollData({ ...enrollData, phone: e.target.value.replace(/\D/g, '') })}
-                  />
                   <textarea
-                    placeholder="Residential Address"
+                    placeholder="Enter residential address..."
                     rows={2}
                     className="w-full bg-white dark:bg-slate-900 p-4 rounded-2xl outline-none border border-transparent focus:border-brand-500 font-bold transition-all resize-none"
                     value={enrollData.address}

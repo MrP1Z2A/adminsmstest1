@@ -55,6 +55,8 @@ export interface Student {
   permissions?: StudentPermissions;
   type?: 'New' | 'Old';
   date_of_birth?: string;
+  phone?: string;
+  address?: string;
   parent_name?: string;
   parent_number?: string;
   parent_email?: string;
@@ -104,4 +106,5 @@ export type PageId =
   | 'student-achievements'
   | 'announcements-parent'
   | 'live-intel'
+  | 'class-announcements'
   | 'about-school';

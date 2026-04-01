@@ -760,7 +760,7 @@ const StudentDirectory: React.FC<StudentDirectoryProps> = ({
         <div className="fixed inset-0 z-[220] bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl p-6 space-y-5 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between gap-4">
-              <h3 className="text-xl font-black tracking-tight">Student Information</h3>
+              <h3 className="text-xl font-black tracking-tight">{title.replace('Directory', 'Information')}</h3>
               <button
                 onClick={() => setSelectedStudent(null)}
                 className="w-10 h-10 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400"

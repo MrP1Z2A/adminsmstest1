@@ -12,7 +12,7 @@ interface EditModalProps {
   onClose: () => void;
   editTarget: { type: string; data: any } | null;
   setEditTarget: (target: any) => void;
-  onUpdate: () => void;
+  onUpdate: (newAvatarFile?: File) => Promise<void>;
 }
 
 const EditModal: React.FC<EditModalProps> = ({
@@ -23,13 +23,33 @@ const EditModal: React.FC<EditModalProps> = ({
   onUpdate
 }) => {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  
+  const [newAvatarFile, setNewAvatarFile] = React.useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  React.useEffect(() => {
+    if (newAvatarFile) {
+      const url = URL.createObjectURL(newAvatarFile);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setPreviewUrl(null);
+  }, [newAvatarFile]);
+
+  // Reset local state when modal opens/closes or target changes
+  React.useEffect(() => {
+    if (isOpen) {
+      setNewAvatarFile(null);
+      setPreviewUrl(null);
+    }
+  }, [isOpen, editTarget?.data?.id]);
+
   if (!isOpen || !editTarget) return null;
 
   const handleConfirm = async () => {
     setIsSubmitting(true);
     try {
-      await onUpdate();
+      await onUpdate(newAvatarFile || undefined);
     } finally {
       setIsSubmitting(false);
     }
@@ -41,7 +61,15 @@ const EditModal: React.FC<EditModalProps> = ({
 
         {/* Modal Header */}
         <div className="p-5 sm:p-8 lg:p-10 border-b border-slate-50 dark:border-slate-800 flex justify-between items-center gap-4">
-          <h3 className="text-xl sm:text-2xl font-black tracking-tight break-words">Modify {editTarget.type} Node</h3>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-brand-500/10 flex items-center justify-center text-brand-500">
+              <i className={`fas ${editTarget.type === 'teacher' ? 'fa-chalkboard-user' : 'fa-user-graduate'}`}></i>
+            </div>
+            <div>
+              <h3 className="text-xl sm:text-2xl font-black tracking-tight break-words">Modify {editTarget.type} Node</h3>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">ID: {editTarget.data.id}</p>
+            </div>
+          </div>
           <button
             onClick={onClose}
             disabled={isSubmitting}
@@ -52,7 +80,42 @@ const EditModal: React.FC<EditModalProps> = ({
         </div>
 
         {/* Dynamic Form Fields */}
-        <div className="p-5 sm:p-8 lg:p-10 space-y-6 max-h-[60vh] overflow-y-auto no-scrollbar">
+        <div className="p-5 sm:p-8 lg:p-10 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+          
+          {/* Profile Picture Section */}
+          {(editTarget.type === 'student' || editTarget.type === 'teacher' || editTarget.type === 'student_service') && (
+            <div className="pb-6 border-b border-slate-100 dark:border-slate-800 flex flex-col items-center gap-4">
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block w-full">Identity Profile</label>
+              <div className="relative group">
+                <div className="w-24 h-24 rounded-3xl bg-slate-100 dark:bg-slate-800 overflow-hidden border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center transition-all group-hover:border-brand-500">
+                  {previewUrl || editTarget.data.avatar ? (
+                    <img src={previewUrl || editTarget.data.avatar} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <i className="fas fa-camera text-2xl text-slate-300"></i>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setNewAvatarFile(file);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-brand-500 text-white flex items-center justify-center shadow-lg hover:bg-brand-600 transition-all"
+                >
+                  <i className="fas fa-plus text-[10px]"></i>
+                </button>
+              </div>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Click + to change profile picture</p>
+            </div>
+          )}
+
           {Object.entries(editTarget.data).map(([key, value]) => {
             // Skip internal or complex fields
             if (
@@ -77,13 +140,23 @@ const EditModal: React.FC<EditModalProps> = ({
             return (
               <div key={key}>
                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">{key.replace(/_/g, ' ')}</label>
-                <input
-                  type={typeof value === 'number' ? 'number' : 'text'}
-                  disabled={isSubmitting}
-                  className="w-full bg-slate-50 dark:bg-slate-800 p-5 rounded-2xl outline-none border-2 border-transparent focus:border-brand-500 font-bold transition-all disabled:opacity-50"
-                  value={value as string}
-                  onChange={(e) => setEditTarget({ ...editTarget, data: { ...editTarget.data, [key]: typeof value === 'number' ? Number(e.target.value) : e.target.value } })}
-                />
+                {key === 'address' ? (
+                  <textarea
+                    rows={2}
+                    disabled={isSubmitting}
+                    className="w-full bg-slate-50 dark:bg-slate-800 p-5 rounded-2xl outline-none border-2 border-transparent focus:border-brand-500 font-bold transition-all disabled:opacity-50 resize-none"
+                    value={String(value || '')}
+                    onChange={(e) => setEditTarget({ ...editTarget, data: { ...editTarget.data, [key]: e.target.value } })}
+                  />
+                ) : (
+                  <input
+                    type={typeof value === 'number' ? 'number' : 'text'}
+                    disabled={isSubmitting}
+                    className="w-full bg-slate-50 dark:bg-slate-800 p-5 rounded-2xl outline-none border-2 border-transparent focus:border-brand-500 font-bold transition-all disabled:opacity-50"
+                    value={value as string || ''}
+                    onChange={(e) => setEditTarget({ ...editTarget, data: { ...editTarget.data, [key]: typeof value === 'number' ? Number(e.target.value) : e.target.value } })}
+                  />
+                )}
               </div>
             );
           })}

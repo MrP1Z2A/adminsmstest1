@@ -1,0 +1,10 @@
+﻿src/lms/App.tsx(1035,35): error TS18047: 'supabase' is possibly 'null'.
+src/lms/App.tsx(2244,7): error TS2322: Type '{ schoolId: string | undefined; notify: (message: string) => void; onOpenCoursePage: ({ id }: { id: string; name: string; classId: string; className?: string | undefined; }) => void; }' is not assignable to type 'IntrinsicAttributes & ClassAndCoursesManagerProps'.
+  Property 'schoolId' does not exist on type 'IntrinsicAttributes & ClassAndCoursesManagerProps'.
+src/lms/components/ClassandCoursesmanager.tsx(2,26): error TS2307: Cannot find module '../supabaseClient' or its corresponding type declarations.
+src/lms/components/ClassandCoursesmanager.tsx(3,55): error TS2307: Cannot find module '../services/tenantService' or its corresponding type declarations.
+src/lms/components/ClassandCoursesmanager.tsx(4,10): error TS2305: Module '"../types"' has no exported member 'Student'.
+src/parent/components/StudentHub.tsx(70,28): error TS2339: Property 'file_url' does not exist on type 'ReportCard'.
+src/parent/components/StudentHub.tsx(72,36): error TS2339: Property 'file_url' does not exist on type 'ReportCard'.
+src/parent/components/StudentHub.tsx(77,73): error TS2339: Property 'file_name' does not exist on type 'ReportCard'.
+src/parent/components/StudentHub.tsx(77,97): error TS2339: Property 'title' does not exist on type 'ReportCard'.

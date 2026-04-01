@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { Mail, ShieldCheck, BookOpen, AlertCircle, Info } from 'lucide-react';
+import { Mail, ShieldCheck, AlertCircle, Info } from 'lucide-react';
 import { supabase } from '../../sms/supabaseClient';
+import logoIem from '../../sms/src/LOGO_IEM.png';
 
 interface LoginPageProps {
   onLogin: (parentData: { email: string; studentIds: string[]; studentNames: string[]; schoolId: string }) => void;
@@ -52,8 +53,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
       <div className="max-w-md w-full z-10 animate-scaleIn">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-600 rounded-3xl shadow-xl mb-6 text-white transform hover:rotate-3 transition-transform">
-            <BookOpen className="w-10 h-10" />
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-white rounded-[32px] p-2 shadow-2xl mb-6 transform hover:rotate-3 transition-transform overflow-hidden">
+            <img src={logoIem} alt="IEM Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tighter">IEM Parent Portal</h1>
           <p className="text-slate-500 mt-2 font-medium">Your child's academic journey, simplified.</p>

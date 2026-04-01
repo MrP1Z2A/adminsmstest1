@@ -27,6 +27,7 @@ import StudentAchievements from './components/StudentAchievements';
 import ExamManagementPage from './components/exammangement.tsx';
 import NoticeBoard from './components/NoticeBoard';
 import NoticeDetailPage from './components/NoticeDetailPage';
+import ClassAnnouncements from './components/ClassAnnouncements';
 import PaymentFinanceHub from './components/PaymentFinanceHub';
 import SecurityPermission from './components/Modals/SecurityPermission';
 import EnrollmentModal from './components/Modals/EnrollmentModal';
@@ -114,6 +115,7 @@ const getInitialEnrollData = (type: 'New' | 'Old' = 'New') => ({
   secondaryParentCountryCode: '+1',
   secondaryParentNumber: '',
   secondaryParentEmail: '',
+  studentCountryCode: '+1',
   phone: '',
   address: '',
 });
@@ -121,6 +123,9 @@ const getInitialEnrollData = (type: 'New' | 'Old' = 'New') => ({
 const getInitialTeacherEnrollData = () => ({
   name: '',
   email: '',
+  phone: '',
+  address: '',
+  avatarFile: null,
 });
 
 interface AppProps {
@@ -1243,6 +1248,45 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     notify(`${idsToInsertToCourse.length} student(s) added to the selected course.`);
   };
 
+  const bulkAssignTeachersToClass = async (teacherIds: string[], classId: string, classCourseId?: string) => {
+    if (!teacherIds.length) {
+      notify('Please select at least one teacher.');
+      return;
+    }
+
+    if (!classCourseId) {
+      notify('Please select a course to assign.');
+      return;
+    }
+
+    const schoolIdValue = await requireSchoolId();
+    
+    // We add all selected teachers to the course in a many-to-many join table
+    const teachersPayload = teacherIds.map(teacherId => ({
+      school_id: schoolIdValue,
+      class_id: classId,
+      class_course_id: classCourseId,
+      teacher_id: teacherId,
+    }));
+
+    const { error } = await supabase
+      .from('class_course_teachers')
+      .insert(teachersPayload);
+
+    if (error) {
+      if (/duplicate key|already exists/i.test(error.message)) {
+        notify('Some teachers were already assigned to this course. Others have been added.');
+      } else {
+        notify(`Failed to assign teachers: ${error.message}`);
+        console.error('Teacher assignment error:', error);
+        return;
+      }
+    } else {
+      notify(`${teacherIds.length} teacher(s) successfully assigned to the course.`);
+    }
+  };
+
+
   const bulkDeleteStudents = async (studentIds: string[]) => {
     const uniqueIds = Array.from(new Set(studentIds.map(id => String(id)).filter(Boolean)));
     if (!uniqueIds.length) {
@@ -1687,6 +1731,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           gender: newTeacher.gender,
           status: newTeacher.status,
           email: newTeacher.email,
+          phone: getValue(row, ['phone', 'teacherphone', 'contact']) || null,
+          address: getValue(row, ['address', 'residence', 'location', 'address']) || null,
           type: newTeacher.type,
           temp_password: generatedPassword,
           temp_password_created_at: new Date().toISOString(),
@@ -1768,22 +1814,28 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     setIsEditModalOpen(true);
   };
 
-  const handleUpdate = async () => {
+  const handleUpdate = async (newAvatarFile?: File) => {
     if (!editTarget) return;
     const { type, data } = editTarget;
 
     try {
       let finalData = { ...data };
 
+      // Handle avatar upload if provided
+      if (newAvatarFile && (type === 'student' || type === 'teacher' || type === 'student_service')) {
+        const imageUrl = await uploadStudentProfileImage(newAvatarFile);
+        finalData.avatar = imageUrl;
+      }
+
       // Sync with Supabase if it's a student
       if (type === 'student') {
         const schoolId = await requireSchoolId();
         const existingStudent = students.find(student => student.id === data.id);
         const studentPayload = withSchoolId({
-          ...data,
-          role: data.role ?? existingStudent?.role ?? 'student',
-          status: data.status ?? existingStudent?.status ?? Status.PENDING,
-          attendanceRate: data.attendanceRate ?? existingStudent?.attendanceRate ?? 0,
+          ...finalData,
+          role: finalData.role ?? existingStudent?.role ?? 'student',
+          status: finalData.status ?? existingStudent?.status ?? Status.PENDING,
+          attendanceRate: finalData.attendanceRate ?? existingStudent?.attendanceRate ?? 0,
         }, schoolId);
 
         const { error } = await supabase.from('students').upsert(studentPayload);
@@ -1799,14 +1851,16 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         const schoolId = await requireSchoolId();
         const existingTeacher = teachers.find(teacher => teacher.id === data.id);
         const teacherPayload = withSchoolId({
-          id: data.id,
-          name: data.name,
-          email: data.email,
+          id: finalData.id,
+          name: finalData.name,
+          email: finalData.email,
           role: 'teacher',
-          gender: data.gender ?? existingTeacher?.gender ?? 'Male',
-          status: data.status ?? existingTeacher?.status ?? Status.PENDING,
-          type: data.type ?? existingTeacher?.type ?? 'New',
-          avatar: data.avatar ?? existingTeacher?.avatar ?? null,
+          gender: finalData.gender ?? existingTeacher?.gender ?? 'Male',
+          status: finalData.status ?? existingTeacher?.status ?? Status.PENDING,
+          type: finalData.type ?? existingTeacher?.type ?? 'New',
+          avatar: finalData.avatar ?? existingTeacher?.avatar ?? null,
+          phone: finalData.phone ?? existingTeacher?.phone ?? '',
+          address: finalData.address ?? existingTeacher?.address ?? '',
         }, schoolId);
 
         const { error } = await supabase.from('teachers').upsert(teacherPayload);
@@ -1818,11 +1872,37 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         finalData = teacherPayload;
       }
 
+      if (type === 'student_service') {
+        const schoolId = await requireSchoolId();
+        const existingStaff = studentServiceStaff.find(staff => staff.id === data.id);
+        const staffPayload = withSchoolId({
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          role: 'student_service',
+          gender: data.gender ?? existingStaff?.gender ?? 'Male',
+          status: data.status ?? existingStaff?.status ?? Status.PENDING,
+          type: data.type ?? existingStaff?.type ?? 'New',
+          avatar: data.avatar ?? existingStaff?.avatar ?? null,
+          phone: data.phone ?? existingStaff?.phone ?? '',
+          address: data.address ?? existingStaff?.address ?? '',
+        }, schoolId);
+
+        const { error } = await supabase.from('student_services').upsert(staffPayload);
+        if (error) {
+          console.error('Supabase Student Service Update Error:', error);
+          notify(`Staff sync failed: ${error.message}`);
+          return;
+        }
+        finalData = staffPayload;
+      }
+
       switch (type) {
         case 'student':
           setStudents(prev => prev.map(s => s.id === finalData.id ? finalData : s));
           break;
         case 'teacher': setTeachers(prev => prev.map(t => t.id === finalData.id ? finalData : t)); break;
+        case 'student_service': setStudentServiceStaff(prev => prev.map(s => s.id === finalData.id ? finalData : s)); break;
         case 'subject': setSubjects(prev => prev.map(s => s.id === finalData.id ? finalData : s)); break;
         case 'library': setLibraryItems(prev => prev.map(i => i.id === finalData.id ? finalData : i)); break;
         case 'exam': setExams(prev => prev.map(e => e.id === finalData.id ? finalData : e)); break;
@@ -2375,6 +2455,9 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       const secondaryParentPhone = enrollData.secondaryParentNumber
         ? toInternationalPhone(enrollData.secondaryParentCountryCode, enrollData.secondaryParentNumber)
         : null;
+      const studentPhone = enrollData.phone
+        ? toInternationalPhone(enrollData.studentCountryCode, enrollData.phone)
+        : null;
 
       let profileImageUrl: string | undefined;
       if (studentProfileImage) {
@@ -2429,7 +2512,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         secondary_parent_name: enrollData.secondaryParentName || null,
         secondary_parent_number: secondaryParentPhone,
         secondary_parent_email: normalizedSecondaryParentEmail || null,
-        phone: enrollData.phone || null,
+        phone: studentPhone,
         address: enrollData.address || null,
       }, schoolId);
 
@@ -2538,22 +2621,24 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         notify('Please provide both name and email.');
         return;
       }
-
       if (!isValidEmail(teacherEnrollData.email)) {
         notify('Please enter a valid teacher email address.');
         return;
       }
 
-      const generatedPassword = generateStudentPassword();
-      const normalizedTeacherEmail = teacherEnrollData.email.trim().toLowerCase();
-
-      let authUserId: string | null = null;
-      try {
-        const authData = await authService.signUp(normalizedTeacherEmail, generatedPassword, teacherEnrollData.name, 'teacher');
-        authUserId = authData?.user?.id || null;
-      } catch (authError: any) {
-        console.error('Auth sign-up failed, continuing with teacher profile only:', authError);
+      // 1. Upload Avatar if present
+      let avatarUrl = '';
+      if (teacherEnrollData.avatarFile) {
+        try {
+          avatarUrl = await uploadStudentProfileImage(teacherEnrollData.avatarFile);
+        } catch (uploadErr: any) {
+          console.error('Staff avatar upload failed:', uploadErr);
+          // Continue anyway, it's not critical
+        }
       }
+
+      const generatedPassword = generateStudentPassword();
+      const authUserId = await authService.signUpStaff(teacherEnrollData.email, generatedPassword, 'teacher', schoolId);
 
       const newTeacher: Student = {
         id: generateStudentNodeId(),
@@ -2561,7 +2646,10 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         role: 'teacher',
         gender: 'Male',
         status: Status.PENDING,
-        email: normalizedTeacherEmail,
+        email: teacherEnrollData.email,
+        phone: teacherEnrollData.phone,
+        address: teacherEnrollData.address,
+        avatar: avatarUrl,
         attendanceRate: 0,
         courseAttendance: [],
         securityStatus: { lastLogin: 'Never', twoFactorEnabled: false, trustedDevices: 0, riskLevel: 'Low' },
@@ -2577,29 +2665,23 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         gender: newTeacher.gender,
         status: newTeacher.status,
         type: newTeacher.type,
+        phone: newTeacher.phone,
+        address: newTeacher.address,
+        avatar: newTeacher.avatar,
         auth_user_id: authUserId,
         temp_password: generatedPassword,
+        temp_password_created_at: new Date().toISOString(),
       }, schoolId);
 
-      let createdTeacherRecord: any = null;
-      let dbError: any = null;
+      const { data, error: insertError } = await supabase
+        .from('teachers')
+        .insert([insertPayload])
+        .select()
+        .maybeSingle();
 
-      {
-        const result = await supabase.from('teachers').insert([insertPayload]).select().maybeSingle();
-        createdTeacherRecord = result.data;
-        dbError = result.error;
-      }
+      if (insertError) throw insertError;
 
-      if (dbError && /invalid input syntax|type uuid|type integer|bigint|smallint/i.test(dbError.message || '')) {
-        const { id, ...payloadWithoutId } = insertPayload;
-        const retryResult = await supabase.from('teachers').insert([payloadWithoutId]).select().maybeSingle();
-        createdTeacherRecord = retryResult.data;
-        dbError = retryResult.error;
-      }
-
-      if (dbError) throw dbError;
-
-      const createdTeacher = mapStudentFromDB(createdTeacherRecord || newTeacher);
+      const createdTeacher = mapStudentFromDB(data || newTeacher);
       setTeachers(prev => [createdTeacher, ...prev]);
       setNewStudentCredentials({ name: createdTeacher.name, email: createdTeacher.email, password: generatedPassword });
 
@@ -2625,24 +2707,30 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         return;
       }
 
-      const generatedPassword = generateStudentPassword();
-      const normalizedEmail = studentServiceEnrollData.email.trim().toLowerCase();
-
-      let authUserId: string | null = null;
-      try {
-        const authData = await authService.signUp(normalizedEmail, generatedPassword, studentServiceEnrollData.name, 'teacher');
-        authUserId = authData?.user?.id || null;
-      } catch (authError: any) {
-        console.error('Auth sign-up failed, continuing with staff profile only:', authError);
+      // 1. Upload Avatar if present
+      let finalAvatarUrl = '';
+      if (studentServiceEnrollData.avatarFile) {
+        try {
+          finalAvatarUrl = await uploadStudentProfileImage(studentServiceEnrollData.avatarFile);
+        } catch (uploadErr: any) {
+          console.error('Staff avatar upload failed:', uploadErr);
+          // Continue anyway, it's not critical
+        }
       }
+
+      const generatedPassword = generateStudentPassword();
+      const authUserId = await authService.signUpStaff(studentServiceEnrollData.email, generatedPassword, 'student_service', schoolId);
 
       const newStaff: Student = {
         id: generateStudentNodeId(),
         name: studentServiceEnrollData.name,
-        role: 'teacher',
+        role: 'student_service',
         gender: 'Male',
         status: Status.PENDING,
-        email: normalizedEmail,
+        email: studentServiceEnrollData.email,
+        phone: studentServiceEnrollData.phone,
+        address: studentServiceEnrollData.address,
+        avatar: finalAvatarUrl,
         attendanceRate: 0,
         courseAttendance: [],
         securityStatus: { lastLogin: 'Never', twoFactorEnabled: false, trustedDevices: 0, riskLevel: 'Low' },
@@ -2658,29 +2746,24 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         gender: newStaff.gender,
         status: newStaff.status,
         type: newStaff.type,
+        phone: newStaff.phone,
+        address: newStaff.address,
+        avatar: newStaff.avatar,
         auth_user_id: authUserId,
         temp_password: generatedPassword,
+        temp_password_created_at: new Date().toISOString(),
       }, schoolId);
 
-      let createdRecord: any = null;
-      let dbError: any = null;
-
-      {
-        const result = await supabase.schema('public').from('student_services').insert([insertPayload]).select().maybeSingle();
-        createdRecord = result.data;
-        dbError = result.error;
-      }
-
-      if (dbError && /invalid input syntax|type uuid|type integer|bigint|smallint/i.test(dbError.message || '')) {
-        const { id, ...payloadWithoutId } = insertPayload;
-        const retryResult = await supabase.schema('public').from('student_services').insert([payloadWithoutId]).select().maybeSingle();
-        createdRecord = retryResult.data;
-        dbError = retryResult.error;
-      }
+      const { data, error: dbError } = await supabase
+        .schema('public')
+        .from('student_services')
+        .insert([insertPayload])
+        .select()
+        .maybeSingle();
 
       if (dbError) throw dbError;
 
-      const createdStaff = mapStudentFromDB(createdRecord || newStaff);
+      const createdStaff = mapStudentFromDB(data || newStaff);
       setStudentServiceStaff(prev => [createdStaff, ...prev]);
       setNewStudentCredentials({ name: createdStaff.name, email: createdStaff.email, password: generatedPassword });
 
@@ -2781,6 +2864,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           gender: newStaff.gender,
           status: newStaff.status,
           email: newStaff.email,
+          phone: getValue(row, ['phone', 'staffphone', 'contact']) || null,
+          address: getValue(row, ['address', 'residence', 'location', 'address']) || null,
           type: newStaff.type,
           temp_password: generatedPassword,
           temp_password_created_at: new Date().toISOString(),
@@ -3626,6 +3711,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           {currentPage === 'student-attendance' && (
             <AttendanceProtocol
               students={attendanceStudents}
+              teachers={teachers}
               subjects={subjects}
               attendanceDate={attendanceDate}
               setAttendanceDate={setAttendanceDate}
@@ -3669,6 +3755,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
             <AttendanceProtocol
               schoolId={schoolId}
               students={attendanceStudents}
+              teachers={teachers}
               subjects={subjects}
               attendanceDate={attendanceDate}
               setAttendanceDate={setAttendanceDate}
@@ -3730,6 +3817,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
               <AttendanceProtocol
                 students={attendanceStudents}
+                teachers={teachers}
                 subjects={subjects}
                 attendanceDate={attendanceDate}
                 setAttendanceDate={setAttendanceDate}
@@ -3796,6 +3884,10 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                 setCurrentPage('notice');
               }}
             />
+          )}
+          
+          {currentPage === 'class-announcements' && (
+            <ClassAnnouncements schoolId={schoolId} />
           )}
 
           {currentPage === 'security' && (
@@ -3904,7 +3996,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
               classes={classes}
               selectedDate={selectedDate}
               setSelectedDate={setSelectedDate}
-              bulkAssignStudentsToClass={bulkAssignStudentsToClass}
+              bulkAssignStudentsToClass={bulkAssignTeachersToClass}
               openPermissions={openPermissions}
               openEditModal={openEditModal}
               requestStudentEditWithPassword={requestStudentEditWithPassword}
@@ -3926,7 +4018,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
               classes={classes}
               selectedDate={selectedDate}
               setSelectedDate={setSelectedDate}
-              bulkAssignStudentsToClass={bulkAssignStudentsToClass}
+              bulkAssignStudentsToClass={bulkAssignTeachersToClass}
               openPermissions={openPermissions}
               openEditModal={openEditModal}
               requestStudentEditWithPassword={requestStudentEditWithPassword}
@@ -4237,7 +4329,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           )}
 
           {/* FALLBACK HUB */}
-          {!['dashboard', 'live-calendar', 'students', 'parents', 'parent-detail', 'student-attendance', 'class-attendance', 'class-course', 'student-register', 'teacher-register', 'teachers', 'student-service', 'student-service-batch', 'library', 'homework', 'report-card', 'about-school', 'payment', 'payment-assign', 'payment-history', 'student-finance-status', 'programs', 'exam', 'security', 'subject', 'notice', 'notice-detail', 'events', 'student-activities', 'announcements-parent', 'live-intel'].includes(currentPage) && (
+          {!['dashboard', 'live-calendar', 'students', 'parents', 'parent-detail', 'student-attendance', 'class-attendance', 'class-course', 'student-register', 'teacher-register', 'teachers', 'student-service', 'student-service-batch', 'library', 'homework', 'report-card', 'about-school', 'payment', 'payment-assign', 'payment-history', 'student-finance-status', 'programs', 'exam', 'security', 'subject', 'notice', 'notice-detail', 'events', 'student-activities', 'announcements-parent', 'live-intel', 'class-announcements'].includes(currentPage) && (
             <div className="bg-white dark:bg-slate-900 p-6 sm:p-10 md:p-16 lg:p-24 rounded-[40px] sm:rounded-[72px] lg:rounded-[120px] text-center shadow-premium animate-in zoom-in-95 duration-500 border border-slate-100 dark:border-slate-800">
               <div className="w-24 h-24 sm:w-36 sm:h-36 lg:w-48 lg:h-48 bg-brand-500/10 text-brand-500 rounded-[32px] sm:rounded-[56px] lg:rounded-[80px] flex items-center justify-center mx-auto mb-8 sm:mb-12 lg:mb-16 text-4xl sm:text-6xl lg:text-8xl shadow-inner group-hover:rotate-12 transition-all"><i className="fas fa-microchip"></i></div>
               <h3 className="text-2xl sm:text-4xl lg:text-6xl font-black tracking-tighter capitalize">{currentPage.replace('-', ' ')} Hub</h3>

@@ -80,26 +80,28 @@ const TeacherRegistrationHub: React.FC<TeacherRegistrationHubProps> = ({
           <div className="w-2 h-8 bg-rose-500 rounded-full"></div>
           Recent Teachers (Quick Termination)
         </h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {teachers.slice(0, 6).map(t => (
-            <div key={t.id} className="p-8 bg-slate-50 dark:bg-slate-800/50 rounded-[40px] flex items-center justify-between group">
-              <div className="flex items-center gap-5">
-                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-700 flex items-center justify-center font-black text-brand-500 shadow-sm">
-                  {t.name.charAt(0)}
+        <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {teachers.map(t => (
+              <div key={t.id} className="p-8 bg-slate-50 dark:bg-slate-800/50 rounded-[40px] flex items-center justify-between group">
+                <div className="flex items-center gap-5">
+                  <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-700 flex items-center justify-center font-black text-brand-500 shadow-sm">
+                    {t.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-black truncate max-w-[120px]">{t.name}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">{t.id}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-black truncate max-w-[120px]">{t.name}</p>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">{t.id}</p>
-                </div>
+                <button
+                  onClick={() => deleteEntity(t.id, 'student')}
+                  className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 text-slate-300 hover:text-rose-500 transition-all shadow-sm flex items-center justify-center"
+                >
+                  <i className="fas fa-trash-can text-sm"></i>
+                </button>
               </div>
-              <button
-                onClick={() => deleteEntity(t.id, 'student')}
-                className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 text-slate-300 hover:text-rose-500 transition-all shadow-sm flex items-center justify-center"
-              >
-                <i className="fas fa-trash-can text-sm"></i>
-              </button>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>

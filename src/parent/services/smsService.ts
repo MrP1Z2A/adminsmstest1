@@ -14,6 +14,9 @@ export interface ReportCard {
   rank: string;
   attendance: string;
   subjects: SubjectResult[];
+  file_url?: string;
+  file_name?: string;
+  title?: string;
 }
 
 export interface PaymentRecord {
@@ -179,7 +182,8 @@ export const fetchParentPortalData = async (
       const studentCoursesRes = await supabase
         .from('student_courses')
         .select('course_id')
-        .eq('student_id', primaryStudentId);
+        .eq('student_id', primaryStudentId)
+        .eq('school_id', schoolId);
       
       if (!studentCoursesRes.error && studentCoursesRes.data && studentCoursesRes.data.length > 0) {
         const courseIds = studentCoursesRes.data.map(sc => sc.course_id);
@@ -187,6 +191,7 @@ export const fetchParentPortalData = async (
           .from('class_courses')
           .select('class_id')
           .in('id', courseIds)
+          .eq('school_id', schoolId)
           .limit(1);
         
         if (!classCoursesRes.error && classCoursesRes.data && classCoursesRes.data.length > 0) {
@@ -324,6 +329,9 @@ export const fetchParentPortalData = async (
       rank: rc.rank || '—',
       attendance: attendance.rate,
       subjects,
+      file_url: rc.file_url || rc.attachment_url,
+      file_name: rc.file_name,
+      title: rc.title || rc.name,
     };
   } else if (examResults.length > 0) {
     // Build from exam_grades if no report_card row
@@ -345,6 +353,9 @@ export const fetchParentPortalData = async (
       rank: '—',
       attendance: attendance.rate,
       subjects,
+      file_url: undefined,
+      file_name: undefined,
+      title: undefined
     };
   }
 

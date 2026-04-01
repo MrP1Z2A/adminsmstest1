@@ -1,6 +1,6 @@
 
-import React from 'react';
 import { View, UserRole } from '../types';
+import logoIem from '../../sms/src/LOGO_IEM.png';
 
 interface SidebarProps {
   currentView: View;
@@ -8,6 +8,7 @@ interface SidebarProps {
   onLogout: () => void;
   userRole: UserRole;
   hasNewNotices?: boolean;
+  unreadMessagesCount?: number;
   userEmail?: string;
   userName?: string;
   isOpen?: boolean;
@@ -24,6 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   userRole,
   hasNewNotices,
+  unreadMessagesCount,
   userName,
   isOpen,
   onToggle,
@@ -38,17 +40,19 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'fa-house', roles: [UserRole.STUDENT] },
-    { id: 'notice-board', label: 'Notice Board', icon: 'fa-bullhorn', roles: [UserRole.STUDENT, UserRole.PARENT] },
+    { id: 'dashboard', label: 'Dashboard', icon: 'fa-house', roles: [UserRole.STUDENT, UserRole.TEACHER] },
+    { id: 'notice-board', label: 'Notice Board', icon: 'fa-bullhorn', roles: [UserRole.STUDENT, UserRole.PARENT, UserRole.TEACHER] },
     { id: 'parent-portal', label: 'Parent Portal', icon: 'fa-clipboard-user', roles: [UserRole.PARENT] },
-    { id: 'profile', label: 'STUDENT PROFILE', icon: 'fa-id-card', roles: [UserRole.STUDENT, UserRole.PARENT] },
-    { id: 'instruction', label: 'Instruction Page', icon: 'fa-book-open', roles: [UserRole.STUDENT, UserRole.PARENT] },
-    { id: 'courses', label: 'Courses', icon: 'fa-graduation-cap', roles: [UserRole.STUDENT] },
-    { id: 'activity', label: 'Activity', icon: 'fa-chart-line', roles: [UserRole.STUDENT] },
-    { id: 'homework', label: 'Homework', icon: 'fa-tasks', roles: [UserRole.STUDENT] },
-    { id: 'timetable', label: 'Time table / Calendar', icon: 'fa-calendar', roles: [UserRole.STUDENT] },
+    { id: 'profile', label: 'PROFILE', icon: 'fa-id-card', roles: [UserRole.STUDENT, UserRole.PARENT, UserRole.TEACHER] },
+    { id: 'instruction', label: 'Instruction Page', icon: 'fa-book-open', roles: [UserRole.STUDENT, UserRole.PARENT, UserRole.TEACHER] },
+    { id: 'courses', label: 'Courses', icon: 'fa-graduation-cap', roles: [UserRole.STUDENT, UserRole.TEACHER] },
+    { id: 'activity', label: 'Activity', icon: 'fa-chart-line', roles: [UserRole.STUDENT, UserRole.TEACHER] },
+    { id: 'homework', label: 'Homework', icon: 'fa-tasks', roles: [UserRole.STUDENT, UserRole.TEACHER] },
+    { id: 'exams', label: 'Exams', icon: 'fa-clipboard-check', roles: [UserRole.TEACHER] },
+    { id: 'timetable', label: 'Time table / Calendar', icon: 'fa-calendar', roles: [UserRole.STUDENT, UserRole.TEACHER] },
     { id: 'studies', label: 'Grades / Achievement', icon: 'fa-trophy', roles: [UserRole.STUDENT] },
-    { id: 'contact', label: 'Messages / Contact', icon: 'fa-comments', roles: [UserRole.STUDENT, UserRole.PARENT] },
+    { id: 'contact', label: 'Messages / Contact', icon: 'fa-comments', roles: [UserRole.STUDENT, UserRole.PARENT, UserRole.TEACHER] },
+    { id: 'about-school', label: 'About School', icon: 'fa-school-circle-check', roles: [UserRole.STUDENT, UserRole.PARENT, UserRole.TEACHER] },
   ];
 
   const filteredNavItems = navItems.filter(item => item.roles.includes(userRole));
@@ -64,8 +68,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       <aside className={`fixed left-0 top-0 h-screen bg-[#0f2624] border-r border-[#1f4e4a] text-white flex flex-col z-[60] overflow-y-auto custom-scrollbar transition-all duration-300 ${isOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-20' : 'md:w-72'}`}>
         <div className={`p-8 flex items-center shrink-0 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-[#4ea59d] rounded-2xl flex items-center justify-center shadow-xl shadow-[#4ea59d]/20 shrink-0">
-              <i className="fa-solid fa-graduation-cap text-xl"></i>
+            <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center p-1 shadow-xl shadow-[#4ea59d]/20 shrink-0 overflow-hidden">
+              <img src={logoIem} alt="IEM Logo" className="w-full h-full object-contain" />
             </div>
             {!isCollapsed && <h1 className="text-xl font-black tracking-tighter text-white uppercase truncate max-w-[180px]">{schoolName || 'IEM'}</h1>}
           </div>
@@ -105,12 +109,17 @@ const Sidebar: React.FC<SidebarProps> = ({
                     {item.label}
                   </span>
                 )}
-                {item.id === 'notice-board' && hasNewNotices && (
+                {(item.id === 'notice-board' && hasNewNotices) && (
                   <span className="relative flex h-3 w-3 shrink-0" title="New notices available">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75"></span>
                     <span className="relative inline-flex h-3 w-3 rounded-full bg-rose-500"></span>
                   </span>
                 )}
+                {(item.id === 'contact' && unreadMessagesCount && unreadMessagesCount > 0) ? (
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-lg shadow-rose-500/40 animate-bounce mb-1 ${isCollapsed ? 'absolute top-2 right-2' : ''}`}>
+                    {unreadMessagesCount}
+                  </span>
+                ) : null}
               </button>
             );
           })}

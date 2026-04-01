@@ -1,7 +1,8 @@
 
 export enum UserRole {
   STUDENT = 'STUDENT',
-  PARENT = 'PARENT'
+  PARENT = 'PARENT',
+  TEACHER = 'TEACHER'
 }
 
 export interface User {
@@ -11,6 +12,7 @@ export interface User {
   role: UserRole;
   avatar: string;
   studentId?: string;
+  teacherId?: string;
   schoolId?: string;
   childId?: string; // Linked student for Parent role
   eduLevel?: string;
@@ -24,6 +26,15 @@ export interface User {
   parentPhone?: string;
   parentEmail?: string;
   address?: string;
+  assignedCourseIds?: string[];
+  assignedClassIds?: string[];
+}
+
+export interface SubjectResult {
+  name: string;
+  grade: string;
+  score: number;
+  comment: string;
 }
 
 export interface ReportCard {
@@ -31,12 +42,10 @@ export interface ReportCard {
   gpa: string;
   rank: string;
   attendance: string;
-  subjects: {
-    name: string;
-    grade: string;
-    score: number;
-    comment: string;
-  }[];
+  subjects: SubjectResult[];
+  file_url?: string;
+  file_name?: string;
+  title?: string;
 }
 
 export interface Note {
@@ -100,6 +109,7 @@ export type View =
   | 'courses' 
   | 'marketplace' 
   | 'course-detail' 
+  | 'class-detail'
   | 'quiz-player' 
   | 'profile'
   | 'instruction'
@@ -108,8 +118,26 @@ export type View =
   | 'timetable'
   | 'studies'
   | 'contact'
+  | 'exams'
   | 'live-intel-detail'
+  | 'about-school'
   | 'parent-portal';
+
+
+export interface Student {
+  id: string;
+  name: string;
+  email: string;
+  attendanceRate?: number;
+  school_id?: string;
+  avatar?: string;
+  parent_name?: string;
+  parent_number?: string;
+  parent_email?: string;
+  phone?: string;
+  address?: string;
+  date_of_birth?: string;
+}
 
 // ...existing code...
 
@@ -133,6 +161,7 @@ export interface Contact {
   avatar?: string;
   lastMessage?: Message;
   unreadCount?: number;
+  lastMessageAt?: string; // ISO timestamp for sorting by most recent interaction
 }
 
 // ...existing code...
