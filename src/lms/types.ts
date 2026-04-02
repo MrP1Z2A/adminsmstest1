@@ -145,11 +145,35 @@ export interface Student {
 export interface Message {
   id: string;
   sender_id: string;
-  receiver_id: string;
+  receiver_id?: string | null;   // null for group messages
+  group_id?: string | null;      // set for group messages
   content: string;
   created_at: string;
   read_at?: string;
   school_id: string;
+}
+
+export interface GroupMember {
+  id: string;
+  group_id: string;
+  user_id: string;
+  user_role: 'teacher' | 'student' | 'student_service';
+  user_name: string;
+  user_avatar?: string;
+  joined_at: string;
+}
+
+export interface MessageGroup {
+  id: string;
+  name: string;
+  created_by: string;
+  school_id: string;
+  avatar_url?: string;
+  created_at: string;
+  members?: GroupMember[];
+  lastMessageAt?: string;
+  lastMessage?: Message;
+  unreadCount?: number;
 }
 
 export interface Contact {

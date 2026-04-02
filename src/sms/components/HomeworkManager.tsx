@@ -33,6 +33,19 @@ type HomeworkItem = {
   created_at?: string;
 };
 
+type HomeworkSubmission = {
+  id: string;
+  assignment_id: string;
+  student_id: string;
+  submission_url: string | null;
+  comment: string | null;
+  status: string | null;
+  submitted_at: string | null;
+  student?: {
+    name: string;
+  };
+};
+
 type CourseFolder = {
   name: string;
   files_count: number;
@@ -73,6 +86,8 @@ export default function HomeworkManager({ schoolId }: { schoolId: string | undef
   const [isLoadingAcademic, setIsLoadingAcademic] = useState(true);
   const [isLoadingHomework, setIsLoadingHomework] = useState(false);
   const [isSavingHomework, setIsSavingHomework] = useState(false);
+  const [submissions, setSubmissions] = useState<Record<string, HomeworkSubmission[]>>({});
+  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState<Record<string, boolean>>({});
 
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [editingHomeworkId, setEditingHomeworkId] = useState<string | null>(null);
@@ -463,6 +478,43 @@ export default function HomeworkManager({ schoolId }: { schoolId: string | undef
     } finally {
       setIsLoadingHomework(false);
     }
+  };
+
+  const fetchSubmissions = async (homeworkId: string) => {
+    if (!schoolId) return;
+    setIsLoadingSubmissions(prev => ({ ...prev, [homeworkId]: true }));
+    try {
+      const { data, error: subError } = await supabase
+        .from('homework_submissions')
+        .select('*, student:student_id(name)')
+        .eq('assignment_id', homeworkId)
+        .eq('school_id', schoolId);
+
+      if (subError) throw subError;
+      setSubmissions(prev => ({ ...prev, [homeworkId]: data || [] }));
+    } catch (err: any) {
+      console.error('Failed to fetch submissions:', err);
+      setError(err?.message || 'Failed to fetch submissions.');
+    } finally {
+      setIsLoadingSubmissions(prev => ({ ...prev, [homeworkId]: false }));
+    }
+  };
+
+  const handleAllowResubmission = async (submission: HomeworkSubmission) => {
+    openConfirmDialog(`Allow ${submission.student?.name || 'student'} to submit again?`, async () => {
+      try {
+        const { error: updateError } = await supabase
+          .from('homework_submissions')
+          .update({ status: 'Reopened' })
+          .eq('id', submission.id);
+
+        if (updateError) throw updateError;
+        await fetchSubmissions(submission.assignment_id);
+      } catch (err: any) {
+        console.error('Failed to allow resubmission:', err);
+        setError(err?.message || 'Failed to allow resubmission.');
+      }
+    });
   };
 
   const loadCourseFolders = async () => {
@@ -883,7 +935,11 @@ export default function HomeworkManager({ schoolId }: { schoolId: string | undef
   };
 
   const toggleHomeworkOpen = (id: string) => {
-    setOpenHomework(prev => ({ ...prev, [id]: !prev[id] }));
+    const nextState = !openHomework[id];
+    setOpenHomework(prev => ({ ...prev, [id]: nextState }));
+    if (nextState) {
+      void fetchSubmissions(id);
+    }
   };
 
   useEffect(() => {
@@ -1251,6 +1307,63 @@ export default function HomeworkManager({ schoolId }: { schoolId: string | undef
                             ) : (
                               <p className="text-xs font-semibold text-slate-400">No attachment</p>
                             )}
+
+                            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                              <div className="flex items-center justify-between gap-3">
+                                <h5 className="text-xs font-black uppercase tracking-widest text-slate-500">Student Submissions</h5>
+                                <button
+                                  onClick={() => void fetchSubmissions(item.id)}
+                                  className="text-[10px] font-black uppercase tracking-widest text-brand-500 hover:underline"
+                                >
+                                  Refresh List
+                                </button>
+                              </div>
+
+                              {isLoadingSubmissions[item.id] ? (
+                                <p className="text-[11px] font-bold text-slate-400">Loading submissions...</p>
+                              ) : !submissions[item.id] || submissions[item.id].length === 0 ? (
+                                <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center">
+                                  <p className="text-[11px] font-bold text-slate-400">No submissions yet.</p>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  {submissions[item.id].map(sub => (
+                                    <div key={sub.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{sub.student?.name || 'Unknown Student'}</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${sub.status === 'Reopened' ? 'bg-orange-500/10 text-orange-500' : 'bg-green-500/10 text-green-500'}`}>
+                                            {sub.status || 'Submitted'}
+                                          </span>
+                                          <span className="text-[9px] font-bold text-slate-400 uppercase">{sub.submitted_at ? new Date(sub.submitted_at).toLocaleDateString() : ''}</span>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+                                        {sub.submission_url && (
+                                          <button
+                                            onClick={() => window.open(sub.submission_url, '_blank')}
+                                            className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-brand-500 flex items-center justify-center transition-all"
+                                            title="View Submission"
+                                          >
+                                            <i className="fas fa-external-link-alt text-[10px]"></i>
+                                          </button>
+                                        )}
+                                        {sub.status !== 'Reopened' && (
+                                          <button
+                                            onClick={() => void handleAllowResubmission(sub)}
+                                            className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-[9px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all flex items-center gap-1.5"
+                                          >
+                                            <i className="fas fa-rotate-left"></i>
+                                            Allow Again
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>

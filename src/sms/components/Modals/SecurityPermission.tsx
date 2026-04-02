@@ -137,6 +137,42 @@ const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_a
   const [isUsersLoading, setIsUsersLoading] = React.useState(false);
   const [usersLoadError, setUsersLoadError] = React.useState<string | null>(null);
   const [userSearch, setUserSearch] = React.useState('');
+  const [isConfigModalOpen, setIsConfigModalOpen] = React.useState(false);
+  const [selectedStaff, setSelectedStaff] = React.useState<AccessRow | null>(null);
+  const [staffPermissions, setStaffPermissions] = React.useState<string[]>([]);
+  const [isSavingPermissions, setIsSavingPermissions] = React.useState(false);
+
+  const SIDEBAR_ITEMS = [
+    { id: 'dashboard', label: 'Dashboard', icon: 'fa-house' },
+    { id: 'live-calendar', label: 'Live Calendar', icon: 'fa-calendar-days' },
+    { id: 'students', label: 'Student Directory', icon: 'fa-user-graduate' },
+    { id: 'parents', label: 'Parent Directory', icon: 'fa-user-group' },
+    { id: 'student-achievements', label: 'Student Achievement', icon: 'fa-trophy' },
+    { id: 'student-register', label: 'Registration Hub', icon: 'fa-user-plus' },
+    { id: 'teachers', label: 'Teacher Directory', icon: 'fa-chalkboard-teacher' },
+    { id: 'teacher-register', label: 'Teacher Registration', icon: 'fa-user-plus' },
+    { id: 'student-service', label: 'SS Directory', icon: 'fa-user-tie' },
+    { id: 'student-service-batch', label: 'Batch Registering', icon: 'fa-users' },
+    { id: 'student-attendance', label: 'Classes', icon: 'fa-calendar-check' },
+    { id: 'sms-attendance', label: 'Attendance', icon: 'fa-check-to-slot' },
+    { id: 'class-group-management', label: 'Group Management', icon: 'fa-users-gear' },
+    { id: 'homework', label: 'Homework', icon: 'fa-book-open' },
+    { id: 'report-card', label: 'Report Card', icon: 'fa-file-lines' },
+    { id: 'notice', label: 'Notice Board', icon: 'fa-bullhorn' },
+    { id: 'events', label: 'Events', icon: 'fa-calendar-star' },
+    { id: 'student-activities', label: 'Student Activities', icon: 'fa-volleyball' },
+    { id: 'announcements-parent', label: 'For Parent', icon: 'fa-comments' },
+    { id: 'class-announcements', label: 'Class Announcements', icon: 'fa-broadcast-tower' },
+    { id: 'live-intel', label: 'Live Intel', icon: 'fa-bolt' },
+    { id: 'payment', label: 'Payment', icon: 'fa-money-bill-wave' },
+    { id: 'payment-assign', label: 'Assign Payment', icon: 'fa-file-invoice-dollar' },
+    { id: 'payment-history', label: 'Payment History', icon: 'fa-receipt' },
+    { id: 'student-finance-status', label: 'Student Finance Status', icon: 'fa-chart-pie' },
+    { id: 'exam', label: 'Exam Management', icon: 'fa-clipboard-check' },
+    { id: 'about-school', label: 'About School', icon: 'fa-circle-info' },
+    { id: 'security', label: 'Security Permission', icon: 'fa-user-shield' },
+    { id: 'messages', label: 'Messages', icon: 'fa-comments' },
+  ];
 
   React.useEffect(() => {
     if (role !== 'super_admin') return;
@@ -145,91 +181,36 @@ const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_a
       setIsUsersLoading(true);
       setUsersLoadError(null);
 
-      const studentsResult = await supabase
-        .schema('public')
-        .from('students')
-        .select('id, name, email, status, created_at')
-        .order('created_at', { ascending: false });
-
-      const teachersOrderedResult = await supabase
-        .schema('public')
-        .from('teachers')
-        .select('id, name, email, status, created_at')
-        .order('created_at', { ascending: false });
-
       const staffOrderedResult = await supabase
-        .schema('public')
         .from('student_services')
-        .select('id, name, email, status, created_at')
+        .select('id, name, email, status, created_at, permissions')
         .order('created_at', { ascending: false });
-
-      let teachersData: any[] = [];
-      let teachersError: any = teachersOrderedResult.error;
-
-      if (!teachersOrderedResult.error && Array.isArray(teachersOrderedResult.data)) {
-        teachersData = teachersOrderedResult.data;
-      } else {
-        const teachersFallbackResult = await supabase
-          .schema('public')
-          .from('teachers')
-          .select('id, name, email, status, created_at');
-
-        teachersError = teachersFallbackResult.error;
-        teachersData = Array.isArray(teachersFallbackResult.data) ? teachersFallbackResult.data : [];
-      }
 
       let staffData: any[] = [];
       if (!staffOrderedResult.error && Array.isArray(staffOrderedResult.data)) {
         staffData = staffOrderedResult.data;
       } else {
         const staffFallbackResult = await supabase
-          .schema('public')
           .from('student_services')
-          .select('id, name, email, status, created_at');
+          .select('id, name, email, status, created_at, permissions');
         staffData = Array.isArray(staffFallbackResult.data) ? staffFallbackResult.data : [];
       }
 
-      const studentsData = Array.isArray(studentsResult.data) ? studentsResult.data : [];
-
-      if (studentsResult.error && teachersError) {
-        setAccessRows([]);
-        setUsersLoadError(studentsResult.error.message || teachersError.message || 'Failed to load users.');
-        setIsUsersLoading(false);
-        return;
-      }
-
-      const rows: AccessRow[] = [
-        ...teachersData.map((teacher: any) => ({
-          id: String(teacher.id || ''),
-          name: String(teacher.name || 'Unnamed Teacher'),
-          email: String(teacher.email || 'No email'),
-          role: 'Teacher' as const,
-          status: String(teacher.status || 'Active'),
-          createdAt: String(teacher.created_at || ''),
-        })),
-        ...staffData.map((staff: any) => ({
-          id: String(staff.id || ''),
-          name: String(staff.name || 'Unnamed Staff'),
-          email: String(staff.email || 'No email'),
-          role: 'Staff' as const,
-          status: String(staff.status || 'Active'),
-          createdAt: String(staff.created_at || ''),
-        })),
-        ...studentsData.map((student: any) => ({
-          id: String(student.id || ''),
-          name: String(student.name || 'Unnamed Student'),
-          email: String(student.email || 'No email'),
-          role: 'Student' as const,
-          status: String(student.status || 'Active'),
-          createdAt: String(student.created_at || ''),
-        })),
-      ];
+      const rows: AccessRow[] = staffData.map((staff: any) => ({
+        id: String(staff.id || ''),
+        name: String(staff.name || 'Unnamed Staff'),
+        email: String(staff.email || 'No email'),
+        role: 'Staff' as const,
+        status: String(staff.status || 'Active'),
+        createdAt: String(staff.created_at || ''),
+        permissions: Array.isArray(staff.permissions) ? staff.permissions : [],
+      }));
 
       rows.sort((left, right) => (right.createdAt || '').localeCompare(left.createdAt || ''));
       setAccessRows(rows);
 
-      if (studentsResult.error || teachersError) {
-        setUsersLoadError(studentsResult.error?.message || teachersError?.message || null);
+      if (staffOrderedResult.error) {
+        setUsersLoadError(staffOrderedResult.error.message || 'Failed to load staff.');
       }
 
       setIsUsersLoading(false);
@@ -237,6 +218,41 @@ const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_a
 
     void loadUsers();
   }, [role]);
+
+  const handleOpenConfig = (staff: AccessRow) => {
+    setSelectedStaff(staff);
+    setStaffPermissions((staff as any).permissions || []);
+    setIsConfigModalOpen(true);
+  };
+
+  const togglePermission = (id: string) => {
+    setStaffPermissions(prev =>
+      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+    );
+  };
+
+  const savePermissions = async () => {
+    if (!selectedStaff || !supabase) return;
+    setIsSavingPermissions(true);
+    try {
+      const { error: updateError } = await supabase
+        .from('student_services')
+        .update({ permissions: staffPermissions })
+        .eq('id', selectedStaff.id);
+
+      if (updateError) throw updateError;
+
+      setAccessRows(prev => prev.map(row =>
+        row.id === selectedStaff.id ? { ...row, permissions: staffPermissions } as any : row
+      ));
+      setIsConfigModalOpen(false);
+    } catch (err: any) {
+      console.error('Failed to save permissions:', err);
+      alert('Failed to save: ' + err.message);
+    } finally {
+      setIsSavingPermissions(false);
+    }
+  };
 
   const securityStats = React.useMemo(() => {
     const teachersCount = accessRows.filter((entry) => entry.role === 'Teacher').length;
@@ -292,6 +308,7 @@ const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_a
   }
 
   return (
+    <>
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-brand-500 rounded-[40px] p-6 sm:p-8 lg:p-10 text-white shadow-premium">
         <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-brand-100">Security Permission</p>
@@ -424,7 +441,10 @@ const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_a
                   </td>
                   <td className="px-6 py-4 text-sm font-semibold text-slate-500 dark:text-slate-300">{formatCreatedDate(entry.createdAt)}</td>
                   <td className="px-6 py-4 text-right">
-                    <button className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-brand-500 transition-all">
+                    <button
+                      onClick={() => handleOpenConfig(entry)}
+                      className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-brand-500 transition-all"
+                    >
                       <i className="fas fa-gear"></i>
                     </button>
                   </td>
@@ -442,6 +462,68 @@ const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_a
         )}
       </div>
     </div>
+
+    {isConfigModalOpen && selectedStaff && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+        <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-[40px] border border-white/20 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-500">Sidebar Configuration</p>
+              <h3 className="mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-white">{selectedStaff.name}</h3>
+            </div>
+            <button onClick={() => setIsConfigModalOpen(false)} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:scale-110 transition-all">
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+
+          <div className="p-8 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {SIDEBAR_ITEMS.map((item) => {
+              const isAllowed = staffPermissions.includes(item.id);
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => togglePermission(item.id)}
+                  className={`cursor-pointer flex items-center gap-4 p-4 rounded-3xl border-2 transition-all ${
+                    isAllowed
+                      ? 'bg-brand-500/10 border-brand-500 text-brand-700 dark:text-brand-400'
+                      : 'bg-slate-50 dark:bg-slate-800/50 border-transparent text-slate-400 hover:border-slate-200'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isAllowed ? 'bg-brand-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                    <i className={`fas ${item.icon}`}></i>
+                  </div>
+                  <span className="font-bold text-sm">{item.label}</span>
+                  <div className="ml-auto">
+                    {isAllowed ? (
+                      <i className="fas fa-circle-check text-brand-500"></i>
+                    ) : (
+                      <div className="w-5 h-5 rounded-full border-2 border-slate-200"></div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="p-8 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-4 bg-slate-50 dark:bg-slate-800/20">
+            <button
+              onClick={() => setIsConfigModalOpen(false)}
+              className="px-8 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-black text-xs uppercase tracking-widest hover:bg-white dark:hover:bg-slate-800 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={savePermissions}
+              disabled={isSavingPermissions}
+              className="px-10 py-3 rounded-2xl bg-brand-500 text-white font-black text-xs uppercase tracking-widest hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/20 disabled:opacity-60"
+            >
+              {isSavingPermissions ? 'Saving...' : 'Save Configuration'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

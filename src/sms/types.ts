@@ -107,4 +107,7 @@ export type PageId =
   | 'announcements-parent'
   | 'live-intel'
   | 'class-announcements'
-  | 'about-school';
+  | 'about-school'
+  | 'messages'
+  | 'class-group-management'
+  | 'sms-attendance';

@@ -978,7 +978,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
             student_id: user.studentId,
             submission_url: submissionUrl,
             comment: submissionComment,
-            school_id: schoolId
+            school_id: schoolId,
+            status: 'Active'
           });
 
         if (submitError) throw submitError;
@@ -2323,10 +2324,17 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                         <div className="flex-1 px-6 py-3 bg-white/5 border border-white/10 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center">
                           Assignment Published
                         </div>
-                      ) : (ass.status === 'Active' || ass.status === 'Submitted' ? (
+                      ) : (ass.status === 'Submitted' || (ass.status === 'Active' && ass.submissionUrl) ? (
                         <div className="flex-1 px-6 py-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center">
                           <i className="fa-solid fa-check mr-2"></i>Submitted
                         </div>
+                      ) : ass.status === 'Reopened' ? (
+                        <button
+                          onClick={() => { setSelectedAssignment(ass); setIsSubmissionModalOpen(true); }}
+                          className="flex-1 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+                        >
+                          <i className="fa-solid fa-rotate-left"></i> Resubmit Task
+                        </button>
                       ) : (
                         <button
                           onClick={() => { setSelectedAssignment(ass); setIsSubmissionModalOpen(true); }}
@@ -2426,10 +2434,20 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                       <div className="px-6 py-3 bg-white/5 border border-white/10 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center">
                         Assignment Published
                       </div>
-                    ) : (ass.status === 'Active' || ass.status === 'Submitted' ? (
+                    ) : (ass.status === 'Submitted' || (ass.status === 'Active' && ass.submissionUrl) ? (
                       <div className="px-6 py-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center flex items-center gap-2">
                         <i className="fa-solid fa-check"></i> Submitted
                       </div>
+                    ) : ass.status === 'Reopened' ? (
+                      <button
+                        onClick={() => {
+                          setSelectedAssignment(ass);
+                          setIsSubmissionModalOpen(true);
+                        }}
+                        className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg shadow-orange-500/20"
+                      >
+                        <i className="fa-solid fa-rotate-left"></i> Resubmit
+                      </button>
                     ) : (
                       <button
                         onClick={() => {

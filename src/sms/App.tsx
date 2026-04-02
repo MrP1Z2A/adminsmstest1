@@ -30,6 +30,10 @@ import NoticeDetailPage from './components/NoticeDetailPage';
 import ClassAnnouncements from './components/ClassAnnouncements';
 import PaymentFinanceHub from './components/PaymentFinanceHub';
 import SecurityPermission from './components/Modals/SecurityPermission';
+import MessagesOversight from './components/MessagesOversight';
+import ClassGroupManagement from './components/ClassGroupManagement';
+import AttendanceTaker from './components/AttendanceTaker';
+
 import EnrollmentModal from './components/Modals/EnrollmentModal';
 import TeacherEnrollmentModal from './components/Modals/TeacherEnrollmentModal';
 import EditModal from './components/Modals/EditModal';
@@ -133,9 +137,11 @@ interface AppProps {
   schoolId?: string;
   schoolName?: string;
   onSchoolIdChange?: (newId: string | undefined, newName?: string) => void;
+  isStudentService?: boolean;
 }
 
-const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdChange }) => {
+const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdChange, isStudentService }) => {
+  const [allowedPages, setAllowedPages] = useState<string[] | undefined>(undefined);
   const [onboardingStatus, setOnboardingStatus] = useState<'loading' | 'needs-school' | 'ready'>('loading');
   const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
   const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
@@ -440,6 +446,24 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           return;
         }
 
+        // Fetch user permissions if Student Service mode
+        if (isStudentService) {
+          const { data: staffData } = await supabase
+            .from('student_services')
+            .select('permissions')
+            .eq('email', user.email)
+            .maybeSingle();
+          
+          if (staffData?.permissions) {
+            setAllowedPages(staffData.permissions);
+          } else {
+            // Default permissions if none set (Dashboard and Student Directory)
+            setAllowedPages(['dashboard', 'students', 'about-school', 'messages']);
+          }
+        } else {
+          setAllowedPages(undefined); // Full access
+        }
+
         let profile: any = null;
         let profileError: any = null;
         let attempts = 0;
@@ -479,7 +503,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       }
     };
     void checkOnboarding();
-  }, []);
+  }, [isStudentService, schoolId]);
 
   useEffect(() => {
     if (isDarkMode) document.documentElement.classList.add('dark');
@@ -3609,6 +3633,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         onCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         onSwitch={onSwitch}
         schoolName={schoolName}
+        allowedPages={allowedPages}
       />
 
       <main className={`flex-1 transition-all duration-300 flex flex-col min-w-0`}>
@@ -3896,6 +3921,18 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
           {currentPage === 'about-school' && (
             <AboutSchool schoolId={schoolId} />
+          )}
+
+          {currentPage === 'messages' && (
+            <MessagesOversight schoolId={schoolId} />
+          )}
+
+          {currentPage === 'class-group-management' && (
+            <ClassGroupManagement schoolId={schoolId} />
+          )}
+
+          {currentPage === 'sms-attendance' && (
+            <AttendanceTaker schoolId={schoolId} />
           )}
 
           {/* SUBJECT PAGE - WITH CRUD */}
@@ -4327,9 +4364,17 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
               )}
             </div>
           )}
+          {currentPage === 'student-achievements' && (
+            <StudentAchievements
+              schoolId={schoolId}
+              students={allStudents.length > 0 ? allStudents : students}
+              notify={notify}
+              onConfirm={(msg, action) => setConfirmDialog({ message: msg, onConfirm: action })}
+            />
+          )}
 
           {/* FALLBACK HUB */}
-          {!['dashboard', 'live-calendar', 'students', 'parents', 'parent-detail', 'student-attendance', 'class-attendance', 'class-course', 'student-register', 'teacher-register', 'teachers', 'student-service', 'student-service-batch', 'library', 'homework', 'report-card', 'about-school', 'payment', 'payment-assign', 'payment-history', 'student-finance-status', 'programs', 'exam', 'security', 'subject', 'notice', 'notice-detail', 'events', 'student-activities', 'announcements-parent', 'live-intel', 'class-announcements'].includes(currentPage) && (
+          {!['dashboard', 'live-calendar', 'students', 'parents', 'parent-detail', 'student-attendance', 'class-attendance', 'class-course', 'student-register', 'teacher-register', 'teachers', 'student-service', 'student-service-batch', 'library', 'homework', 'report-card', 'about-school', 'payment', 'payment-assign', 'payment-history', 'student-finance-status', 'programs', 'exam', 'security', 'subject', 'notice', 'notice-detail', 'events', 'student-activities', 'announcements-parent', 'live-intel', 'class-announcements', 'messages', 'class-group-management', 'sms-attendance', 'student-achievements'].includes(currentPage) && (
             <div className="bg-white dark:bg-slate-900 p-6 sm:p-10 md:p-16 lg:p-24 rounded-[40px] sm:rounded-[72px] lg:rounded-[120px] text-center shadow-premium animate-in zoom-in-95 duration-500 border border-slate-100 dark:border-slate-800">
               <div className="w-24 h-24 sm:w-36 sm:h-36 lg:w-48 lg:h-48 bg-brand-500/10 text-brand-500 rounded-[32px] sm:rounded-[56px] lg:rounded-[80px] flex items-center justify-center mx-auto mb-8 sm:mb-12 lg:mb-16 text-4xl sm:text-6xl lg:text-8xl shadow-inner group-hover:rotate-12 transition-all"><i className="fas fa-microchip"></i></div>
               <h3 className="text-2xl sm:text-4xl lg:text-6xl font-black tracking-tighter capitalize">{currentPage.replace('-', ' ')} Hub</h3>
