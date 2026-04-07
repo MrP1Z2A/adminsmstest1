@@ -1307,21 +1307,27 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     setPasswordSuccess(null);
 
     try {
-      // 1. Verify old password by attempting re-login
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: oldPassword,
-      });
+      // 1. Identify Target Table
+      const table = user.role === UserRole.TEACHER ? 'teachers' : 'students';
 
-      if (signInError) {
+      // 2. Verify current password from the database
+      const { data: dbUser, error: checkError } = await supabase
+        .from(table)
+        .select('temp_password')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+      if (!dbUser || dbUser.temp_password !== oldPassword) {
         setPasswordError("Incorrect current password.");
         return;
       }
 
-      // 2. Update to new password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
+      // 3. Update to new password in the database
+      const { error: updateError } = await supabase
+        .from(table)
+        .update({ temp_password: newPassword })
+        .eq('id', user.id);
 
       if (updateError) throw updateError;
 
