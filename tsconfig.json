@@ -25,5 +25,6 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
+  "exclude": ["src/sms/check_security_table.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

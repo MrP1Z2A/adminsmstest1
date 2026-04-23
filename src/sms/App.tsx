@@ -124,6 +124,7 @@ const getInitialEnrollData = (type: 'New' | 'Old' = 'New') => ({
   studentCountryCode: '+1',
   phone: '',
   address: '',
+  studentschool_id: '',
 });
 
 const getInitialTeacherEnrollData = () => ({
@@ -132,6 +133,7 @@ const getInitialTeacherEnrollData = () => ({
   phone: '',
   address: '',
   avatarFile: null,
+  school_id: '',
 });
 
 interface AppProps {
@@ -2599,7 +2601,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         secondary_parent_email: normalizedSecondaryParentEmail || null,
         phone: studentPhone,
         address: enrollData.address || null,
-        studentschool_id: enrollData.school_id || null,
+        studentschool_id: enrollData.studentschool_id || null,
       }, schoolId);
 
       let createdStudentRecord: any = null;
