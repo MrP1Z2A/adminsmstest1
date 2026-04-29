@@ -163,7 +163,7 @@ export interface GroupMember {
   id: string;
   group_id: string;
   user_id: string;
-  user_role: 'teacher' | 'student' | 'student_service';
+  user_role: 'teacher' | 'student' | 'student_service' | 'parent' | string;
   user_name: string;
   user_avatar?: string;
   joined_at: string;
@@ -187,7 +187,7 @@ export interface Contact {
   auth_user_id: string; // The ID for messaging (auth.users.id)
   name: string;
   email: string;
-  role: 'teacher' | 'student' | 'student_service';
+  role: 'teacher' | 'student' | 'student_service' | 'parent';
   avatar?: string;
   lastMessage?: Message;
   unreadCount?: number;

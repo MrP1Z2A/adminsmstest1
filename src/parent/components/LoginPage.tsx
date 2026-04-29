@@ -3,9 +3,22 @@ import React, { useState } from 'react';
 import { Mail, ShieldCheck, AlertCircle, Info } from 'lucide-react';
 import { supabase } from '../../sms/supabaseClient';
 import logoIem from '../../sms/src/LOGO_IEM.png';
+import {
+  buildParentMessagingId,
+  findParentMessagingUserByEmail,
+  getFallbackParentName,
+  normalizeParentMessagingEmail,
+} from '../../shared/messaging/parentMessaging';
 
 interface LoginPageProps {
-  onLogin: (parentData: { email: string; studentIds: string[]; studentNames: string[]; schoolId: string }) => void;
+  onLogin: (parentData: {
+    email: string;
+    parentId: string;
+    parentName: string;
+    studentIds: string[];
+    studentNames: string[];
+    schoolId: string;
+  }) => void;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
@@ -21,20 +34,28 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setError(null);
 
     try {
+      const normalizedEmail = normalizeParentMessagingEmail(email);
       let { data, error: fetchError } = await supabase
         .from('students')
-        .select('id, name, parent_email, secondary_parent_email, school_id')
-        .or(`parent_email.eq.${email.trim()},secondary_parent_email.eq.${email.trim()}`);
+        .select('id, name, parent_name, parent_email, secondary_parent_name, secondary_parent_email, school_id')
+        .or(`parent_email.ilike.${normalizedEmail},secondary_parent_email.ilike.${normalizedEmail}`);
 
       if (fetchError) throw fetchError;
 
       if (data && data.length > 0) {
+        const schoolId = data[0].school_id || '';
+        const parentUser = schoolId
+          ? findParentMessagingUserByEmail(schoolId, data, normalizedEmail)
+          : null;
+
         setLoading(false);
         onLogin({
-          email: email.trim(),
+          email: normalizedEmail,
+          parentId: parentUser?.id || buildParentMessagingId(schoolId, normalizedEmail),
+          parentName: parentUser?.name || getFallbackParentName(normalizedEmail),
           studentIds: data.map(s => s.id),
           studentNames: data.map(s => s.name),
-          schoolId: data[0].school_id || ''
+          schoolId,
         });
       } else {
         setLoading(false);

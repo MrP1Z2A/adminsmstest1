@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../src/supabaseClient';
+import { isUnicornSchoolLogo } from '../../shared/branding/unicornSchoolLogo';
 
 interface SchoolInfoProps {
   schoolId: string;
@@ -28,6 +29,7 @@ export default function SchoolInfo({ schoolId }: SchoolInfoProps) {
   }, [schoolId]);
 
   if (isLoading || !data) return null;
+  const isUnicornLogo = isUnicornSchoolLogo(data.logo_url);
 
   return (
     <div className="space-y-12 animate-fadeIn">
@@ -46,8 +48,8 @@ export default function SchoolInfo({ schoolId }: SchoolInfoProps) {
         
         <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start">
           {data.logo_url && (
-            <div className="w-32 h-32 rounded-3xl overflow-hidden border-2 border-[#4ea59d] shadow-lg shrink-0">
-               <img src={data.logo_url} alt="Logo" className="w-full h-full object-cover" />
+            <div className={`${isUnicornLogo ? 'w-44 h-24 rounded-[28px] bg-[#121A33] p-3' : 'w-32 h-32 rounded-3xl'} overflow-hidden border-2 border-[#4ea59d] shadow-lg shrink-0`}>
+               <img src={data.logo_url} alt="Logo" className={`w-full h-full ${isUnicornLogo ? 'object-contain' : 'object-cover'}`} />
             </div>
           )}
           <div className="space-y-6">

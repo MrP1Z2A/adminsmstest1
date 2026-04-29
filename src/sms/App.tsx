@@ -10,6 +10,7 @@ import { supabase } from './supabaseClient';
 import { authService } from './services/authService';
 import { getCurrentTenantContext, withSchoolId } from './services/tenantService';
 import { hashPassword } from './services/cryptoUtils';
+import { DEFAULT_STAFF_ALLOWED_PAGES, normalizeStaffAllowedPages } from './utils/staffPermissions';
 import CreateSchoolPage from './components/CreateSchoolPage';
 import StaffLogin from './components/StaffLogin';
 import Sidebar from './components/Sidebar';
@@ -95,12 +96,171 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\d{6,15}$/;
 
 const isValidEmail = (value: string) => EMAIL_PATTERN.test(value.trim());
+const normalizeEmailValue = (value: string) => value.trim().toLowerCase();
 const normalizeDigits = (value: string) => value.replace(/\D/g, '');
 const isValidPhoneDigits = (value: string) => PHONE_PATTERN.test(normalizeDigits(value));
 const toInternationalPhone = (countryCode: string, phoneValue: string) => {
   const normalizedCountryCode = String(countryCode || '').trim() || '+1';
   const normalizedPhone = normalizeDigits(phoneValue);
   return `${normalizedCountryCode}${normalizedPhone}`;
+};
+
+type EmailRegistryKind = 'student' | 'parent' | 'teacher' | 'staff';
+type EmailRegistryField = 'email' | 'parent_email' | 'secondary_parent_email';
+type EmailRegistryEntry = {
+  email: string;
+  kind: EmailRegistryKind;
+  field: EmailRegistryField;
+  name: string;
+  recordId: string;
+};
+type EmailCheck = {
+  email: string;
+  label: string;
+  allowExistingParentEmail?: boolean;
+};
+
+const addEmailRegistryEntry = (
+  registry: Map<string, EmailRegistryEntry[]>,
+  entry: EmailRegistryEntry | null | undefined
+) => {
+  if (!entry?.email) return;
+  const normalizedEmail = normalizeEmailValue(entry.email);
+  if (!normalizedEmail) return;
+
+  const nextEntry = {
+    ...entry,
+    email: normalizedEmail,
+  };
+  const existingEntries = registry.get(normalizedEmail) || [];
+  existingEntries.push(nextEntry);
+  registry.set(normalizedEmail, existingEntries);
+};
+
+const describeEmailRegistryEntries = (entries: EmailRegistryEntry[]) => {
+  const descriptions = Array.from(new Set(entries.map((entry) => {
+    if (entry.kind === 'parent') {
+      const relationship = entry.field === 'secondary_parent_email' ? 'secondary parent' : 'primary parent';
+      return `${relationship}${entry.name ? ` (${entry.name})` : ''}`;
+    }
+
+    const kindLabel = entry.kind === 'staff' ? 'staff account' : `${entry.kind} account`;
+    return `${kindLabel}${entry.name ? ` (${entry.name})` : ''}`;
+  })));
+
+  if (descriptions.length <= 1) return descriptions[0] || 'an existing record';
+  if (descriptions.length === 2) return `${descriptions[0]} and ${descriptions[1]}`;
+
+  return `${descriptions.slice(0, -1).join(', ')}, and ${descriptions[descriptions.length - 1]}`;
+};
+
+const getEmailConflictMessages = (
+  checks: EmailCheck[],
+  registry: Map<string, EmailRegistryEntry[]>
+) => {
+  const inputDuplicateMessages = new Set<string>();
+  const registryMessages = new Set<string>();
+  const seenInputs = new Map<string, string>();
+
+  checks.forEach((check) => {
+    const normalizedEmail = normalizeEmailValue(check.email);
+    if (!normalizedEmail) return;
+
+    const existingLabel = seenInputs.get(normalizedEmail);
+    if (existingLabel && existingLabel !== check.label) {
+      inputDuplicateMessages.add(`${check.label} matches ${existingLabel.toLowerCase()}.`);
+      return;
+    }
+
+    seenInputs.set(normalizedEmail, check.label);
+  });
+
+  checks.forEach((check) => {
+    const normalizedEmail = normalizeEmailValue(check.email);
+    if (!normalizedEmail) return;
+
+    const matches = (registry.get(normalizedEmail) || []).filter((entry) => {
+      if (check.allowExistingParentEmail && entry.kind === 'parent') {
+        return false;
+      }
+      return true;
+    });
+
+    if (matches.length > 0) {
+      registryMessages.add(`${check.label} already belongs to ${describeEmailRegistryEntries(matches)}.`);
+    }
+  });
+
+  return [...inputDuplicateMessages, ...registryMessages];
+};
+
+const createSchoolEmailRegistry = async (schoolId: string) => {
+  const [studentsResult, teachersResult, staffResult] = await Promise.all([
+    supabase
+      .from('students')
+      .select('id, name, email, parent_name, parent_email, secondary_parent_name, secondary_parent_email')
+      .eq('school_id', schoolId),
+    supabase
+      .from('teachers')
+      .select('id, name, email')
+      .eq('school_id', schoolId),
+    supabase
+      .from('student_services')
+      .select('id, name, email')
+      .eq('school_id', schoolId),
+  ]);
+
+  const registry = new Map<string, EmailRegistryEntry[]>();
+
+  if (studentsResult.error) throw studentsResult.error;
+  if (teachersResult.error) throw teachersResult.error;
+  if (staffResult.error) throw staffResult.error;
+
+  (studentsResult.data || []).forEach((student: any) => {
+    addEmailRegistryEntry(registry, {
+      email: String(student.email || ''),
+      kind: 'student',
+      field: 'email',
+      name: String(student.name || ''),
+      recordId: String(student.id || ''),
+    });
+    addEmailRegistryEntry(registry, {
+      email: String(student.parent_email || ''),
+      kind: 'parent',
+      field: 'parent_email',
+      name: String(student.parent_name || student.name || ''),
+      recordId: String(student.id || ''),
+    });
+    addEmailRegistryEntry(registry, {
+      email: String(student.secondary_parent_email || ''),
+      kind: 'parent',
+      field: 'secondary_parent_email',
+      name: String(student.secondary_parent_name || student.name || ''),
+      recordId: String(student.id || ''),
+    });
+  });
+
+  (teachersResult.data || []).forEach((teacher: any) => {
+    addEmailRegistryEntry(registry, {
+      email: String(teacher.email || ''),
+      kind: 'teacher',
+      field: 'email',
+      name: String(teacher.name || ''),
+      recordId: String(teacher.id || ''),
+    });
+  });
+
+  (staffResult.data || []).forEach((staff: any) => {
+    addEmailRegistryEntry(registry, {
+      email: String(staff.email || ''),
+      kind: 'staff',
+      field: 'email',
+      name: String(staff.name || ''),
+      recordId: String(staff.id || ''),
+    });
+  });
+
+  return registry;
 };
 
 const getInitialEnrollData = (type: 'New' | 'Old' = 'New') => ({
@@ -467,17 +627,44 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
         // Fetch user permissions if Student Service mode
         if (isStudentService) {
-          const { data: staffData } = await supabase
-            .from('student_services')
-            .select('permissions')
-            .eq('email', user.email)
-            .maybeSingle();
-          
-          if (staffData?.permissions) {
-            setAllowedPages(staffData.permissions);
+          let resolvedStaffData: { permissions?: unknown } | null = null;
+          let permissionsQueryError: any = null;
+
+          {
+            const result = await supabase
+              .from('student_services')
+              .select('permissions')
+              .eq('auth_user_id', user.id)
+              .maybeSingle();
+
+            resolvedStaffData = result.data;
+            permissionsQueryError = result.error;
+          }
+
+          if (!resolvedStaffData && user.email) {
+            const fallbackResult = await supabase
+              .from('student_services')
+              .select('permissions')
+              .eq('email', user.email)
+              .maybeSingle();
+
+            resolvedStaffData = fallbackResult.data;
+            permissionsQueryError = permissionsQueryError || fallbackResult.error;
+          }
+
+          if (permissionsQueryError && !/permissions/i.test(permissionsQueryError.message || '')) {
+            throw permissionsQueryError;
+          }
+
+          if (resolvedStaffData) {
+            const normalizedPages = normalizeStaffAllowedPages(resolvedStaffData.permissions);
+            setAllowedPages(
+              resolvedStaffData.permissions === null || resolvedStaffData.permissions === undefined
+                ? DEFAULT_STAFF_ALLOWED_PAGES
+                : normalizedPages
+            );
           } else {
-            // Default permissions if none set (Dashboard and Student Directory)
-            setAllowedPages(['dashboard', 'students', 'about-school', 'messages']);
+            setAllowedPages(DEFAULT_STAFF_ALLOWED_PAGES);
           }
         } else {
           setAllowedPages(undefined); // Full access
@@ -1594,6 +1781,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
       const successfulStudents: Student[] = [];
       const skippedRows: string[] = [];
+      const emailRegistry = await createSchoolEmailRegistry(schoolId);
 
       for (let index = 0; index < rawRows.length; index += 1) {
         const row = rawRows[index];
@@ -1602,9 +1790,23 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         const name = getValue(row, ['name', 'fullname', 'studentname']);
         const email = getValue(row, ['email', 'studentemail', 'mail']);
         const gender = parseGender(getValue(row, ['gender', 'sex']));
+        const normalizedStudentEmail = normalizeEmailValue(email);
+        const normalizedParentEmail = normalizeEmailValue(getValue(row, ['parentemail']));
+        const normalizedSecondaryParentEmail = normalizeEmailValue(getValue(row, ['secondaryparentemail']));
 
         if (!name || !email) {
           skippedRows.push(`Row ${rowNumber}: missing name or email`);
+          continue;
+        }
+
+        const emailConflicts = getEmailConflictMessages([
+          { email: normalizedStudentEmail, label: 'Student email' },
+          { email: normalizedParentEmail, label: 'Primary parent email', allowExistingParentEmail: true },
+          { email: normalizedSecondaryParentEmail, label: 'Secondary parent email', allowExistingParentEmail: true },
+        ], emailRegistry);
+
+        if (emailConflicts.length > 0) {
+          skippedRows.push(`Row ${rowNumber}: ${emailConflicts[0]}`);
           continue;
         }
 
@@ -1616,7 +1818,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           role: 'student',
           gender,
           status: Status.PENDING,
-          email,
+          email: normalizedStudentEmail,
           attendanceRate: 0,
           courseAttendance: [],
           securityStatus: { lastLogin: 'Never', twoFactorEnabled: false, trustedDevices: 0, riskLevel: 'Low' },
@@ -1631,10 +1833,10 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           date_of_birth: getValue(row, ['dateofbirth', 'dob']) || null,
           parent_name: getValue(row, ['parentname']) || null,
           parent_number: getValue(row, ['parentnumber', 'parentphone']) || null,
-          parent_email: getValue(row, ['parentemail']) || null,
+          parent_email: normalizedParentEmail || null,
           secondary_parent_name: getValue(row, ['secondaryparentname']) || null,
           secondary_parent_number: getValue(row, ['secondaryparentnumber', 'secondaryparentphone']) || null,
-          secondary_parent_email: getValue(row, ['secondaryparentemail']) || null,
+          secondary_parent_email: normalizedSecondaryParentEmail || null,
           phone: getValue(row, ['phone', 'studentphone', 'contact']) || null,
           address: getValue(row, ['address', 'residence', 'location']) || null,
         }, schoolId);
@@ -1668,7 +1870,29 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           continue;
         }
 
-        successfulStudents.push(mapStudentFromDB(createdRow || payload));
+        const createdStudent = mapStudentFromDB(createdRow || payload);
+        successfulStudents.push(createdStudent);
+        addEmailRegistryEntry(emailRegistry, {
+          email: createdStudent.email,
+          kind: 'student',
+          field: 'email',
+          name: createdStudent.name,
+          recordId: String(createdStudent.id || ''),
+        });
+        addEmailRegistryEntry(emailRegistry, {
+          email: payload.parent_email || '',
+          kind: 'parent',
+          field: 'parent_email',
+          name: String(payload.parent_name || createdStudent.name || ''),
+          recordId: String(createdStudent.id || ''),
+        });
+        addEmailRegistryEntry(emailRegistry, {
+          email: payload.secondary_parent_email || '',
+          kind: 'parent',
+          field: 'secondary_parent_email',
+          name: String(payload.secondary_parent_name || createdStudent.name || ''),
+          recordId: String(createdStudent.id || ''),
+        });
       }
 
       if (successfulStudents.length > 0) {
@@ -1745,6 +1969,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
       const successfulTeachers: Student[] = [];
       const skippedRows: string[] = [];
+      const emailRegistry = await createSchoolEmailRegistry(schoolId);
 
       for (let index = 0; index < rawRows.length; index += 1) {
         const row = rawRows[index];
@@ -1753,9 +1978,19 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         const name = getValue(row, ['name', 'fullname', 'teachername']);
         const email = getValue(row, ['email', 'teacheremail', 'mail']);
         const gender = parseGender(getValue(row, ['gender', 'sex']));
+        const normalizedTeacherEmail = normalizeEmailValue(email);
 
         if (!name || !email) {
           skippedRows.push(`Row ${rowNumber}: missing name or email`);
+          continue;
+        }
+
+        const emailConflicts = getEmailConflictMessages([
+          { email: normalizedTeacherEmail, label: 'Teacher email' },
+        ], emailRegistry);
+
+        if (emailConflicts.length > 0) {
+          skippedRows.push(`Row ${rowNumber}: ${emailConflicts[0]}`);
           continue;
         }
 
@@ -1767,7 +2002,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           role: 'teacher',
           gender,
           status: Status.PENDING,
-          email,
+          email: normalizedTeacherEmail,
           attendanceRate: 0,
           courseAttendance: [],
           securityStatus: { lastLogin: 'Never', twoFactorEnabled: false, trustedDevices: 0, riskLevel: 'Low' },
@@ -1818,7 +2053,15 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           continue;
         }
 
-        successfulTeachers.push(mapStudentFromDB(createdRow || payload));
+        const createdTeacher = mapStudentFromDB(createdRow || payload);
+        successfulTeachers.push(createdTeacher);
+        addEmailRegistryEntry(emailRegistry, {
+          email: createdTeacher.email,
+          kind: 'teacher',
+          field: 'email',
+          name: createdTeacher.name,
+          recordId: String(createdTeacher.id || ''),
+        });
       }
 
       if (successfulTeachers.length > 0) {
@@ -2535,9 +2778,9 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       }
 
       const generatedPassword = generateStudentPassword();
-      const normalizedStudentEmail = enrollData.email.trim().toLowerCase();
-      const normalizedParentEmail = enrollData.parentEmail.trim().toLowerCase();
-      const normalizedSecondaryParentEmail = enrollData.secondaryParentEmail.trim().toLowerCase();
+      const normalizedStudentEmail = normalizeEmailValue(enrollData.email);
+      const normalizedParentEmail = normalizeEmailValue(enrollData.parentEmail);
+      const normalizedSecondaryParentEmail = normalizeEmailValue(enrollData.secondaryParentEmail);
       const primaryParentPhone = toInternationalPhone(enrollData.parentCountryCode, enrollData.parentNumber);
       const secondaryParentPhone = enrollData.secondaryParentNumber
         ? toInternationalPhone(enrollData.secondaryParentCountryCode, enrollData.secondaryParentNumber)
@@ -2545,6 +2788,18 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       const studentPhone = enrollData.phone
         ? toInternationalPhone(enrollData.studentCountryCode, enrollData.phone)
         : null;
+
+      const emailRegistry = await createSchoolEmailRegistry(schoolId);
+      const emailConflicts = getEmailConflictMessages([
+        { email: normalizedStudentEmail, label: 'Student email' },
+        { email: normalizedParentEmail, label: 'Primary parent email', allowExistingParentEmail: true },
+        { email: normalizedSecondaryParentEmail, label: 'Secondary parent email', allowExistingParentEmail: true },
+      ], emailRegistry);
+
+      if (emailConflicts.length > 0) {
+        notify(emailConflicts[0]);
+        return;
+      }
 
       let profileImageUrl: string | undefined;
       if (studentProfileImage) {
@@ -2714,6 +2969,17 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         return;
       }
 
+      const normalizedTeacherEmail = normalizeEmailValue(teacherEnrollData.email);
+      const emailRegistry = await createSchoolEmailRegistry(schoolId);
+      const emailConflicts = getEmailConflictMessages([
+        { email: normalizedTeacherEmail, label: 'Teacher email' },
+      ], emailRegistry);
+
+      if (emailConflicts.length > 0) {
+        notify(emailConflicts[0]);
+        return;
+      }
+
       // 1. Upload Avatar if present
       let avatarUrl = '';
       if (teacherEnrollData.avatarFile) {
@@ -2726,7 +2992,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       }
 
       const generatedPassword = generateStudentPassword();
-      const authUserId = await authService.signUpStaff(teacherEnrollData.email, generatedPassword, 'teacher', schoolId);
+      const authUserId = await authService.signUpStaff(normalizedTeacherEmail, generatedPassword, 'teacher', schoolId);
 
       const newTeacher: Student = {
         id: generateStudentNodeId(),
@@ -2734,7 +3000,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         role: 'teacher',
         gender: 'Male',
         status: Status.PENDING,
-        email: teacherEnrollData.email,
+        email: normalizedTeacherEmail,
         phone: teacherEnrollData.phone,
         address: teacherEnrollData.address,
         avatar: avatarUrl,
@@ -2796,6 +3062,17 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         return;
       }
 
+      const normalizedStaffEmail = normalizeEmailValue(studentServiceEnrollData.email);
+      const emailRegistry = await createSchoolEmailRegistry(schoolId);
+      const emailConflicts = getEmailConflictMessages([
+        { email: normalizedStaffEmail, label: 'Staff email' },
+      ], emailRegistry);
+
+      if (emailConflicts.length > 0) {
+        notify(emailConflicts[0]);
+        return;
+      }
+
       // 1. Upload Avatar if present
       let finalAvatarUrl = '';
       if (studentServiceEnrollData.avatarFile) {
@@ -2808,7 +3085,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       }
 
       const generatedPassword = generateStudentPassword();
-      const authUserId = await authService.signUpStaff(studentServiceEnrollData.email, generatedPassword, 'student_service', schoolId);
+      const authUserId = await authService.signUpStaff(normalizedStaffEmail, generatedPassword, 'student_service', schoolId);
 
       const newStaff: Student = {
         id: generateStudentNodeId(),
@@ -2816,7 +3093,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         role: 'student_service',
         gender: 'Male',
         status: Status.PENDING,
-        email: studentServiceEnrollData.email,
+        email: normalizedStaffEmail,
         phone: studentServiceEnrollData.phone,
         address: studentServiceEnrollData.address,
         avatar: finalAvatarUrl,
@@ -2917,6 +3194,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
       const successfulStaff: Student[] = [];
       const skippedRows: string[] = [];
+      const emailRegistry = await createSchoolEmailRegistry(schoolId);
 
       for (let index = 0; index < rawRows.length; index += 1) {
         const row = rawRows[index];
@@ -2925,9 +3203,19 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         const name = getValue(row, ['name', 'fullname', 'staffname']);
         const email = getValue(row, ['email', 'staffemail', 'mail']);
         const gender = parseGender(getValue(row, ['gender', 'sex']));
+        const normalizedStaffEmail = normalizeEmailValue(email);
 
         if (!name || !email) {
           skippedRows.push(`Row ${rowNumber}: missing name or email`);
+          continue;
+        }
+
+        const emailConflicts = getEmailConflictMessages([
+          { email: normalizedStaffEmail, label: 'Staff email' },
+        ], emailRegistry);
+
+        if (emailConflicts.length > 0) {
+          skippedRows.push(`Row ${rowNumber}: ${emailConflicts[0]}`);
           continue;
         }
 
@@ -2939,7 +3227,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           role: 'teacher',
           gender,
           status: Status.PENDING,
-          email,
+          email: normalizedStaffEmail,
           attendanceRate: 0,
           courseAttendance: [],
           securityStatus: { lastLogin: 'Never', twoFactorEnabled: false, trustedDevices: 0, riskLevel: 'Low' },
@@ -2982,7 +3270,15 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           continue;
         }
 
-        successfulStaff.push(mapStudentFromDB(createdRow || payload));
+        const createdStaff = mapStudentFromDB(createdRow || payload);
+        successfulStaff.push(createdStaff);
+        addEmailRegistryEntry(emailRegistry, {
+          email: createdStaff.email,
+          kind: 'staff',
+          field: 'email',
+          name: createdStaff.name,
+          recordId: String(createdStaff.id || ''),
+        });
       }
 
       if (successfulStaff.length > 0) {
@@ -3997,7 +4293,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           )}
 
           {currentPage === 'security' && (
-            <SecurityPermission />
+            <SecurityPermission schoolId={schoolId} />
           )}
 
           {currentPage === 'about-school' && (
@@ -4005,7 +4301,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           )}
 
           {currentPage === 'messages' && schoolId && (
-            <MessagesOversight schoolId={schoolId} />
+            <MessagesOversight schoolId={schoolId} schoolName={schoolName} />
           )}
 
           {currentPage === 'class-group-management' && schoolId && (

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  LayoutDashboard, UserCircle, Bell, LogOut, 
+  LayoutDashboard, UserCircle, Bell, LogOut, MessageSquare,
   Menu, X, School, ChevronRight, CreditCard, ChevronLeft,
   LayoutGrid
 } from 'lucide-react';
@@ -13,8 +13,19 @@ import Communications from './components/Communications';
 import Finance from './components/Finance';
 import LoginPage from './components/LoginPage';
 import NoticeDetail from './components/NoticeDetail';
+import MessagingCenter from './components/MessagingCenter';
+import { buildParentMessagingId, getFallbackParentName } from '../shared/messaging/parentMessaging';
 
-type ParentView = 'dashboard' | 'student' | 'institution' | 'news' | 'finance' | 'notice-detail';
+type ParentView = 'dashboard' | 'student' | 'institution' | 'messages' | 'news' | 'finance' | 'notice-detail';
+
+type ParentSessionData = {
+  email: string;
+  parentId?: string;
+  parentName?: string;
+  studentIds: string[];
+  studentNames: string[];
+  schoolId: string;
+};
 
 interface ParentAppProps {
   onSwitch?: () => void;
@@ -38,6 +49,7 @@ const Sidebar = ({
     { id: 'dashboard' as ParentView, name: 'Dashboard',      icon: <LayoutDashboard className="w-5 h-5" /> },
     { id: 'student'   as ParentView, name: 'Student Hub',    icon: <UserCircle className="w-5 h-5" /> },
     { id: 'institution' as ParentView, name: 'Institution',  icon: <School className="w-5 h-5" /> },
+    { id: 'messages'  as ParentView, name: 'Messages',       icon: <MessageSquare className="w-5 h-5" /> },
     { id: 'news'      as ParentView, name: 'Notices & News', icon: <Bell className="w-5 h-5" /> },
     { id: 'finance'   as ParentView, name: 'Payments',       icon: <CreditCard className="w-5 h-5" /> },
   ];
@@ -187,7 +199,7 @@ const ParentApp: React.FC<ParentAppProps> = ({ onSwitch }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem(PARENT_SESSION_KEY) === 'true';
   });
-  const [parentData, setParentData] = useState<any>(() => {
+  const [parentData, setParentData] = useState<ParentSessionData | null>(() => {
     const saved = localStorage.getItem('iem_parent_data');
     return saved ? JSON.parse(saved) : null;
   });
@@ -200,7 +212,7 @@ const ParentApp: React.FC<ParentAppProps> = ({ onSwitch }) => {
     return () => { delete (window as any).switchEnvironment; };
   }, [onSwitch]);
 
-  const handleLogin = (data: any) => {
+  const handleLogin = (data: ParentSessionData) => {
     setParentData(data);
     setIsLoggedIn(true);
     localStorage.setItem(PARENT_SESSION_KEY, 'true');
@@ -218,6 +230,10 @@ const ParentApp: React.FC<ParentAppProps> = ({ onSwitch }) => {
 
   if (!isLoggedIn) return <LoginPage onLogin={handleLogin} />;
 
+  const resolvedParentId = parentData?.parentId
+    || buildParentMessagingId(parentData?.schoolId || '', parentData?.email || '');
+  const resolvedParentName = parentData?.parentName || getFallbackParentName(parentData?.email);
+
   const renderContent = () => {
     const ids = parentData?.studentIds;
     const names = parentData?.studentNames;
@@ -227,6 +243,7 @@ const ParentApp: React.FC<ParentAppProps> = ({ onSwitch }) => {
       case 'dashboard':     return <Dashboard key={keyStr} parentEmail={parentData?.email} studentNames={names} studentIds={ids} schoolId={parentData?.schoolId} onNoticeClick={(n: any) => { setSelectedNotice(n); setCurrentView('notice-detail'); }} />;
       case 'student':       return <StudentHub key={keyStr} studentNames={names} studentIds={ids} schoolId={parentData?.schoolId} />;
       case 'institution':   return <InstitutionHub schoolId={parentData?.schoolId} parentEmail={parentData?.email} />;
+      case 'messages':      return <MessagingCenter schoolId={parentData?.schoolId} parentId={resolvedParentId} parentName={resolvedParentName} parentEmail={parentData?.email || ''} studentNames={names} />;
       case 'news':          return <Communications schoolId={parentData?.schoolId} />;
       case 'finance':       return <Finance key={keyStr} studentIds={ids} schoolId={parentData?.schoolId} />;
       case 'notice-detail': return <NoticeDetail notice={selectedNotice} onBack={() => setCurrentView('dashboard')} />;

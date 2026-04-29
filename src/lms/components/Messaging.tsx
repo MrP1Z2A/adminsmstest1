@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../src/supabaseClient';
-import { Contact, Message, User, MessageGroup, GroupMember } from '../types';
+import { Contact, Message, User, MessageGroup, GroupMember, UserRole } from '../types';
+import { buildParentMessagingUsers, isParentMessagingId } from '../../shared/messaging/parentMessaging';
 
 interface MessagingProps {
   currentUser: User;
@@ -104,7 +105,11 @@ const Messaging: React.FC<MessagingProps> = ({ currentUser, schoolId }) => {
     try {
       const [{ data: teachers }, { data: students }, { data: services }] = await Promise.all([
         supabase.from('teachers').select('id, name, email, avatar, teacherschool_id, staffschool_id').eq('school_id', schoolId),
-        supabase.from('students').select('id, name, email, avatar, studentschool_id').eq('school_id', schoolId).neq('id', currentUser.id),
+        supabase
+          .from('students')
+          .select('id, name, email, avatar, studentschool_id, parent_name, parent_email, secondary_parent_name, secondary_parent_email')
+          .eq('school_id', schoolId)
+          .neq('id', currentUser.id),
         supabase.from('student_services').select('id, name, email, avatar, staffschool_id').eq('school_id', schoolId),
       ]);
 
@@ -114,7 +119,6 @@ const Messaging: React.FC<MessagingProps> = ({ currentUser, schoolId }) => {
         ...(services?.map(sv => ({ ...sv, auth_user_id: sv.id, role: 'student_service' as const })) || []),
       ];
 
-      const allIds = allContacts.map(c => c.id);
       const { data: allMessages } = await supabase
         .from('messages')
         .select('id, sender_id, receiver_id, content, created_at, read_at')
@@ -125,6 +129,30 @@ const Messaging: React.FC<MessagingProps> = ({ currentUser, schoolId }) => {
       const lastMsgMap: Record<string, { lastAt: string; lastContent: string }> = {};
       const unreadCounts: Record<string, number> = {};
 
+      if (currentUser.role === UserRole.TEACHER) {
+        const parentConversationIds = Array.from(new Set(
+          (allMessages || [])
+            .map((msg) => msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id)
+            .filter((id): id is string => Boolean(id) && isParentMessagingId(id, schoolId))
+        ));
+
+        if (parentConversationIds.length > 0) {
+          const parentContacts = buildParentMessagingUsers(schoolId, (students || []) as any[])
+            .filter((parent) => parentConversationIds.includes(parent.id))
+            .map((parent) => ({
+              id: parent.id,
+              auth_user_id: parent.id,
+              name: parent.name,
+              email: parent.email,
+              role: 'parent' as const,
+              avatar: parent.avatar,
+            }));
+
+          allContacts.push(...parentContacts);
+        }
+      }
+
+      const allIds = allContacts.map(c => c.id);
       for (const msg of (allMessages || [])) {
         const otherId = msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id;
         if (!otherId || !allIds.includes(otherId)) continue;
@@ -386,6 +414,7 @@ const Messaging: React.FC<MessagingProps> = ({ currentUser, schoolId }) => {
       teacher: { label: 'Teachers', icon: 'fa-chalkboard-teacher', color: 'text-amber-400', bgColor: 'bg-amber-400/10', contacts: [] },
       student: { label: 'Students', icon: 'fa-user-graduate', color: 'text-[#4ea59d]', bgColor: 'bg-[#4ea59d]/10', contacts: [] },
       student_service: { label: 'Student Services', icon: 'fa-headset', color: 'text-purple-400', bgColor: 'bg-purple-400/10', contacts: [] },
+      parent: { label: 'Parents', icon: 'fa-people-roof', color: 'text-emerald-400', bgColor: 'bg-emerald-400/10', contacts: [] },
     };
     for (const c of filteredContacts) { if (g[c.role]) g[c.role].contacts.push(c); }
     return g;
@@ -409,6 +438,7 @@ const Messaging: React.FC<MessagingProps> = ({ currentUser, schoolId }) => {
   const getRoleColor = (role: Contact['role']) => {
     if (role === 'teacher') return 'text-amber-400';
     if (role === 'student_service') return 'text-purple-400';
+    if (role === 'parent') return 'text-emerald-400';
     return 'text-[#4ea59d]';
   };
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { School, MapPin, Phone, Globe, MessageSquare, Share2, Send, Mail, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { supabase } from '../../sms/supabaseClient';
+import { isUnicornSchoolLogo } from '../../shared/branding/unicornSchoolLogo';
 
 interface InstitutionHubProps {
   schoolId?: string;
@@ -102,6 +103,7 @@ const InstitutionHub: React.FC<InstitutionHubProps> = ({ schoolId, parentEmail }
     email: 'Not provided',
     address: 'Not provided'
   };
+  const isUnicornLogo = isUnicornSchoolLogo(school.logo_url);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-20">
@@ -118,8 +120,8 @@ const InstitutionHub: React.FC<InstitutionHubProps> = ({ schoolId, parentEmail }
           <div className="p-8">
             <div className="flex items-center gap-5 mb-8">
               {school.logo_url ? (
-                <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-emerald-600 shadow-md flex-shrink-0">
-                   <img src={school.logo_url} alt="Logo" className="w-full h-full object-cover" />
+                <div className={`${isUnicornLogo ? 'w-28 h-16 rounded-[1.35rem] bg-[#121A33] p-2.5' : 'w-16 h-16 rounded-2xl'} overflow-hidden border-2 border-emerald-600 shadow-md flex-shrink-0`}>
+                   <img src={school.logo_url} alt="Logo" className={`w-full h-full ${isUnicornLogo ? 'object-contain' : 'object-cover'}`} />
                 </div>
               ) : (
                 <div className="bg-emerald-600 p-4 rounded-3xl text-white shadow-lg shadow-emerald-200">

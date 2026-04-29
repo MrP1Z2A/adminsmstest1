@@ -1,10 +1,12 @@
 import React from 'react';
 import { supabase } from '../../supabaseClient';
+import { DEFAULT_STAFF_ALLOWED_PAGES, normalizeStaffAllowedPages } from '../../utils/staffPermissions';
 
 type UserRole = 'super_admin' | 'teacher' | 'student' | 'student_service';
 
 type SecurityPermissionProps = {
   role?: UserRole;
+  schoolId?: string;
 };
 
 type RoleConfig = {
@@ -78,6 +80,10 @@ type AccessRow = {
   role: 'Teacher' | 'Student' | 'Staff';
   status: string;
   createdAt: string;
+  schoolId?: string | null;
+  authUserId?: string | null;
+  hasStoredPermissions: boolean;
+  permissions: string[];
 };
 
 const restrictedActionMap: Record<Exclude<UserRole, 'super_admin'>, Array<{ title: string; description: string; icon: string; accent: string }>> = {
@@ -131,7 +137,7 @@ const formatCreatedDate = (value: string) => {
   return date.toLocaleDateString();
 };
 
-const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_admin' }) => {
+const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_admin', schoolId }) => {
   const currentRoleConfig = roleConfigs.find((entry) => entry.role === role) || roleConfigs[0];
   const [accessRows, setAccessRows] = React.useState<AccessRow[]>([]);
   const [isUsersLoading, setIsUsersLoading] = React.useState(false);
@@ -141,6 +147,8 @@ const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_a
   const [selectedStaff, setSelectedStaff] = React.useState<AccessRow | null>(null);
   const [staffPermissions, setStaffPermissions] = React.useState<string[]>([]);
   const [isSavingPermissions, setIsSavingPermissions] = React.useState(false);
+  const [saveStatus, setSaveStatus] = React.useState<string | null>(null);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   const SIDEBAR_ITEMS = [
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-house' },
@@ -180,36 +188,59 @@ const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_a
     const loadUsers = async () => {
       setIsUsersLoading(true);
       setUsersLoadError(null);
+      setSaveStatus(null);
 
-      const staffOrderedResult = await supabase
-        .from('student_services')
-        .select('id, name, email, status, created_at, permissions')
-        .order('created_at', { ascending: false });
+      const buildStaffQuery = (includePermissions: boolean) => {
+        const selectedColumns = includePermissions
+          ? 'id, auth_user_id, school_id, name, email, status, created_at, permissions'
+          : 'id, auth_user_id, school_id, name, email, status, created_at';
+
+        let query = supabase
+          .from('student_services')
+          .select(selectedColumns);
+
+        if (schoolId) {
+          query = query.eq('school_id', schoolId);
+        }
+
+        return query;
+      };
+
+      let staffOrderedResult = await buildStaffQuery(true).order('created_at', { ascending: false });
+      let permissionsColumnMissing = false;
+
+      if (staffOrderedResult.error && /permissions/i.test(staffOrderedResult.error.message || '')) {
+        permissionsColumnMissing = true;
+        staffOrderedResult = await buildStaffQuery(false).order('created_at', { ascending: false });
+      }
 
       let staffData: any[] = [];
       if (!staffOrderedResult.error && Array.isArray(staffOrderedResult.data)) {
         staffData = staffOrderedResult.data;
       } else {
-        const staffFallbackResult = await supabase
-          .from('student_services')
-          .select('id, name, email, status, created_at, permissions');
+        const staffFallbackResult = await buildStaffQuery(!permissionsColumnMissing);
         staffData = Array.isArray(staffFallbackResult.data) ? staffFallbackResult.data : [];
       }
 
       const rows: AccessRow[] = staffData.map((staff: any) => ({
         id: String(staff.id || ''),
+        authUserId: staff?.auth_user_id ? String(staff.auth_user_id) : null,
+        schoolId: staff?.school_id ? String(staff.school_id) : null,
         name: String(staff.name || 'Unnamed Staff'),
         email: String(staff.email || 'No email'),
         role: 'Staff' as const,
         status: String(staff.status || 'Active'),
         createdAt: String(staff.created_at || ''),
-        permissions: Array.isArray(staff.permissions) ? staff.permissions : [],
+        hasStoredPermissions: staff?.permissions !== null && staff?.permissions !== undefined,
+        permissions: normalizeStaffAllowedPages(staff.permissions),
       }));
 
       rows.sort((left, right) => (right.createdAt || '').localeCompare(left.createdAt || ''));
       setAccessRows(rows);
 
-      if (staffOrderedResult.error) {
+      if (permissionsColumnMissing) {
+        setUsersLoadError('The `student_services.permissions` column is missing. Run `src/sms/sql/add_staff_permissions.sql` so staff access settings can be saved to Supabase.');
+      } else if (staffOrderedResult.error) {
         setUsersLoadError(staffOrderedResult.error.message || 'Failed to load staff.');
       }
 
@@ -217,11 +248,13 @@ const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_a
     };
 
     void loadUsers();
-  }, [role]);
+  }, [role, schoolId]);
 
   const handleOpenConfig = (staff: AccessRow) => {
     setSelectedStaff(staff);
-    setStaffPermissions((staff as any).permissions || []);
+    setStaffPermissions(staff.hasStoredPermissions ? (staff.permissions || []) : DEFAULT_STAFF_ALLOWED_PAGES);
+    setSaveError(null);
+    setSaveStatus(null);
     setIsConfigModalOpen(true);
   };
 
@@ -234,21 +267,34 @@ const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_a
   const savePermissions = async () => {
     if (!selectedStaff || !supabase) return;
     setIsSavingPermissions(true);
+    setSaveError(null);
+    setSaveStatus(null);
     try {
-      const { error: updateError } = await supabase
+      const normalizedPermissions = normalizeStaffAllowedPages(staffPermissions);
+      const targetSchoolId = selectedStaff.schoolId || schoolId || null;
+
+      let query = supabase
         .from('student_services')
-        .update({ permissions: staffPermissions })
+        .update({ permissions: normalizedPermissions })
         .eq('id', selectedStaff.id);
+
+      if (targetSchoolId) {
+        query = query.eq('school_id', targetSchoolId);
+      }
+
+      const { error: updateError } = await query;
 
       if (updateError) throw updateError;
 
       setAccessRows(prev => prev.map(row =>
-        row.id === selectedStaff.id ? { ...row, permissions: staffPermissions } as any : row
+        row.id === selectedStaff.id ? { ...row, permissions: normalizedPermissions, hasStoredPermissions: true } : row
       ));
+      setSelectedStaff(prev => (prev ? { ...prev, permissions: normalizedPermissions, hasStoredPermissions: true } : prev));
+      setSaveStatus('Staff permissions saved to Supabase.');
       setIsConfigModalOpen(false);
     } catch (err: any) {
       console.error('Failed to save permissions:', err);
-      alert('Failed to save: ' + err.message);
+      setSaveError(err?.message || 'Failed to save permissions.');
     } finally {
       setIsSavingPermissions(false);
     }
@@ -379,6 +425,21 @@ const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_a
           </div>
         </div>
 
+        {(saveStatus || saveError) && (
+          <div className="px-6 sm:px-8 pt-6">
+            {saveStatus && (
+              <p className="text-sm font-semibold text-emerald-700 bg-emerald-50 rounded-2xl px-4 py-3">
+                {saveStatus}
+              </p>
+            )}
+            {saveError && (
+              <p className="text-sm font-semibold text-rose-700 bg-rose-50 rounded-2xl px-4 py-3">
+                {saveError}
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
           <table className="w-full min-w-[720px] text-left border-separate border-spacing-0">
             <thead className="sticky top-0 z-10">
@@ -504,6 +565,14 @@ const SecurityPermission: React.FC<SecurityPermissionProps> = ({ role = 'super_a
               );
             })}
           </div>
+
+          {saveError && (
+            <div className="px-8 pb-2">
+              <p className="text-sm font-semibold text-rose-700 bg-rose-50 rounded-2xl px-4 py-3">
+                {saveError}
+              </p>
+            </div>
+          )}
 
           <div className="p-8 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-4 bg-slate-50 dark:bg-slate-800/20">
             <button
