@@ -11,6 +11,7 @@ interface SidebarProps {
   onCollapse?: () => void;
   onSwitch?: () => void;
   schoolName?: string;
+  schoolLogoUrl?: string;
   allowedPages?: string[];
 }
 
@@ -23,11 +24,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   onCollapse,
   onSwitch,
   schoolName,
+  schoolLogoUrl,
   allowedPages
 }) => {
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
   const navRef = useRef<HTMLElement | null>(null);
   const sidebarScrollTopRef = useRef(0);
+  const activeLogoUrl = schoolLogoUrl || logoIem;
 
   useEffect(() => {
     const navElement = navRef.current;
@@ -87,7 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     <aside className={`fixed lg:sticky lg:top-0 lg:h-screen bg-[#0f172a] text-white z-50 lg:z-0 flex flex-col transition-all duration-300 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl w-64' : '-translate-x-full lg:translate-x-0'} ${isCollapsed ? 'lg:w-20' : 'lg:w-64'} ${!isMobileMenuOpen ? 'lg:w-0' : ''}`}>
       <div className={`p-8 pb-10 flex items-center shrink-0 ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
         <div className="w-10 h-10 bg-brand-500 rounded-2xl flex items-center justify-center shadow-lg shadow-brand-500/30 overflow-hidden shrink-0">
-          <img src={logoIem} alt="IEM" className="w-full h-full object-cover" />
+          <img src={activeLogoUrl} alt={schoolName || 'School'} className="w-full h-full object-cover" />
         </div>
         {!isCollapsed && <span className="text-xl font-black tracking-tighter truncate max-w-[150px]">{schoolName || 'IEM'}</span>}
       </div>

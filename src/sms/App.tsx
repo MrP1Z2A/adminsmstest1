@@ -319,6 +319,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
   const [cloudSyncCountdown, setCloudSyncCountdown] = useState(CLOUD_SYNC_INTERVAL_SECONDS);
   const [isCloudSyncRunning, setIsCloudSyncRunning] = useState(false);
   const isCloudSyncRunningRef = useRef(false);
+  const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | undefined>(undefined);
+  const [currentSchoolName, setCurrentSchoolName] = useState<string | undefined>(schoolName);
 
   // Stateful Data
   const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
@@ -610,6 +612,21 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     return tenant.schoolId;
   }, [schoolId]);
 
+  const handleSchoolProfileChange = useCallback((profile: { name?: string | null; logo_url?: string | null }) => {
+    if (Object.prototype.hasOwnProperty.call(profile, 'logo_url')) {
+      setSchoolLogoUrl(profile.logo_url || undefined);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(profile, 'name')) {
+      const nextSchoolName = profile.name || undefined;
+      setCurrentSchoolName(nextSchoolName);
+
+      if (onSchoolIdChange && schoolId) {
+        onSchoolIdChange(schoolId, nextSchoolName);
+      }
+    }
+  }, [onSchoolIdChange, schoolId]);
+
   // Check onboarding status on mount
   useEffect(() => {
     const checkOnboarding = async () => {
@@ -715,6 +732,50 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     if (isDarkMode) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
   }, [isDarkMode]);
+
+  useEffect(() => {
+    setCurrentSchoolName(schoolName);
+  }, [schoolName]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadSchoolBranding = async () => {
+      if (!schoolId) {
+        if (isActive) {
+          setSchoolLogoUrl(undefined);
+        }
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('schools')
+          .select('name, logo_url')
+          .eq('id', schoolId)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!isActive) return;
+
+        setSchoolLogoUrl(data?.logo_url ? String(data.logo_url) : undefined);
+        if (data?.name) {
+          setCurrentSchoolName(String(data.name));
+        }
+      } catch (err) {
+        console.error('Failed to load school branding:', err);
+        if (isActive) {
+          setSchoolLogoUrl(undefined);
+        }
+      }
+    };
+
+    void loadSchoolBranding();
+
+    return () => {
+      isActive = false;
+    };
+  }, [schoolId]);
 
   const mapStudentFromDB = (student: any): Student => ({
     ...(student as Student),
@@ -3708,7 +3769,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
   if (onboardingStatus === 'needs-auth') {
     return (
       <StaffLogin 
-        schoolName={schoolName}
+        schoolName={currentSchoolName || schoolName}
         onLoginSuccess={() => setOnboardingStatus('loading')}
         onBackToSchoolSelect={() => {
           if (onSchoolIdChange) onSchoolIdChange(undefined);
@@ -4009,7 +4070,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         isCollapsed={isSidebarCollapsed}
         onCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         onSwitch={onSwitch}
-        schoolName={schoolName}
+        schoolName={currentSchoolName || schoolName}
+        schoolLogoUrl={schoolLogoUrl}
         allowedPages={allowedPages}
       />
 
@@ -4297,11 +4359,11 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           )}
 
           {currentPage === 'about-school' && (
-            <AboutSchool schoolId={schoolId} />
+            <AboutSchool schoolId={schoolId} onSchoolProfileChange={handleSchoolProfileChange} />
           )}
 
           {currentPage === 'messages' && schoolId && (
-            <MessagesOversight schoolId={schoolId} schoolName={schoolName} />
+            <MessagesOversight schoolId={schoolId} schoolName={currentSchoolName || schoolName} />
           )}
 
           {currentPage === 'class-group-management' && schoolId && (

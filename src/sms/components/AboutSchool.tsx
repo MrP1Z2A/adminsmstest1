@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { hashPassword } from '../services/cryptoUtils';
-import { isUnicornSchoolLogo, UNICORN_SCHOOL_LOGO_DATA_URI } from '../../shared/branding/unicornSchoolLogo';
+import { getUnicornSchoolLogoDataUri, isUnicornSchoolLogo } from '../../shared/branding/unicornSchoolLogo';
 
 interface AboutSchoolProps {
   schoolId: string | undefined;
+  onSchoolProfileChange?: (profile: Partial<SchoolMetadata>) => void;
 }
 
 interface SchoolMetadata {
@@ -18,7 +19,7 @@ interface SchoolMetadata {
   address: string | null;
 }
 
-export default function AboutSchool({ schoolId }: AboutSchoolProps) {
+export default function AboutSchool({ schoolId, onSchoolProfileChange }: AboutSchoolProps) {
   const [data, setData] = useState<SchoolMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -29,6 +30,7 @@ export default function AboutSchool({ schoolId }: AboutSchoolProps) {
   const [isSecuritySaving, setIsSecuritySaving] = useState(false);
   const [securityStatus, setSecurityStatus] = useState<string | null>(null);
   const [securityError, setSecurityError] = useState<string | null>(null);
+  const [defaultLogoUrl, setDefaultLogoUrl] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -39,12 +41,13 @@ export default function AboutSchool({ schoolId }: AboutSchoolProps) {
     logo_url: '',
     banner_url: ''
   });
-  const isUnicornLogoPreview = isUnicornSchoolLogo(formData.logo_url);
+  const isHeaderLogoPreview = Boolean(defaultLogoUrl) && formData.logo_url === defaultLogoUrl;
 
   const loadSchoolData = async () => {
     if (!schoolId) return;
     setIsLoading(true);
     try {
+      const nextLogoUrl = await getUnicornSchoolLogoDataUri();
       const { data: school, error: loadError } = await supabase
         .from('schools')
         .select('*')
@@ -53,21 +56,23 @@ export default function AboutSchool({ schoolId }: AboutSchoolProps) {
 
       if (loadError) throw loadError;
       if (school) {
-        const nextLogoUrl = UNICORN_SCHOOL_LOGO_DATA_URI;
+        const usesManagedLogo = !school.logo_url || school.logo_url === nextLogoUrl || isUnicornSchoolLogo(school.logo_url);
 
-        if (school.logo_url !== nextLogoUrl) {
+        if (usesManagedLogo && school.logo_url !== nextLogoUrl) {
           const { error: logoUpdateError } = await supabase
             .from('schools')
             .update({ logo_url: nextLogoUrl })
             .eq('id', schoolId);
 
           if (logoUpdateError) throw logoUpdateError;
-          setStatus('Unicorn logo applied to this school profile.');
+          setStatus('Header logo applied to this school profile.');
         }
+
+        const resolvedLogoUrl = usesManagedLogo ? nextLogoUrl : (school.logo_url || '');
 
         setData({
           ...school,
-          logo_url: nextLogoUrl,
+          logo_url: resolvedLogoUrl,
         });
         setFormData({
           name: school.name || '',
@@ -75,8 +80,13 @@ export default function AboutSchool({ schoolId }: AboutSchoolProps) {
           phone: school.phone || '',
           email: school.email || '',
           address: school.address || '',
-          logo_url: nextLogoUrl,
+          logo_url: resolvedLogoUrl,
           banner_url: school.banner_url || ''
+        });
+        onSchoolProfileChange?.({
+          name: school.name || '',
+          logo_url: resolvedLogoUrl,
+          banner_url: school.banner_url || '',
         });
       }
     } catch (err: any) {
@@ -89,7 +99,21 @@ export default function AboutSchool({ schoolId }: AboutSchoolProps) {
 
   useEffect(() => {
     void loadSchoolData();
-  }, [schoolId]);
+  }, [schoolId, onSchoolProfileChange]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    void getUnicornSchoolLogoDataUri().then((url) => {
+      if (isActive) {
+        setDefaultLogoUrl(url);
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -151,6 +175,25 @@ export default function AboutSchool({ schoolId }: AboutSchoolProps) {
         .eq('id', schoolId);
 
       if (updateError) throw updateError;
+      setData(prev => prev ? ({
+        ...prev,
+        name: formData.name,
+        about: formData.about,
+        phone: formData.phone,
+        email: formData.email,
+        address: formData.address,
+        logo_url: formData.logo_url,
+        banner_url: formData.banner_url,
+      }) : prev);
+      onSchoolProfileChange?.({
+        name: formData.name,
+        about: formData.about,
+        phone: formData.phone,
+        email: formData.email,
+        address: formData.address,
+        logo_url: formData.logo_url,
+        banner_url: formData.banner_url,
+      });
       setStatus('School profile updated successfully!');
     } catch (err: any) {
       console.error('Update error:', err);
@@ -222,9 +265,9 @@ export default function AboutSchool({ schoolId }: AboutSchoolProps) {
           <div className="space-y-4">
             <h3 className="text-sm font-black uppercase tracking-[0.1em] text-slate-400">School Logo</h3>
             <div className="flex items-center gap-6">
-              <div className={`${isUnicornLogoPreview ? 'w-44 h-24 rounded-[28px] bg-[#121A33] p-3' : 'w-24 h-24 rounded-3xl bg-slate-100 dark:bg-slate-800'} flex items-center justify-center overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner`}>
+              <div className="w-24 h-24 rounded-3xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner">
                 {formData.logo_url ? (
-                  <img src={formData.logo_url} alt="Logo" className={`w-full h-full ${isUnicornLogoPreview ? 'object-contain' : 'object-cover'}`} />
+                  <img src={formData.logo_url} alt="Logo" className={`w-full h-full ${isHeaderLogoPreview ? 'object-contain' : 'object-cover'}`} />
                 ) : (
                   <i className="fas fa-school text-3xl text-slate-300"></i>
                 )}
@@ -247,14 +290,18 @@ export default function AboutSchool({ schoolId }: AboutSchoolProps) {
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, logo_url: UNICORN_SCHOOL_LOGO_DATA_URI }))}
+                    onClick={() => {
+                      if (!defaultLogoUrl) return;
+                      setFormData(prev => ({ ...prev, logo_url: defaultLogoUrl }));
+                    }}
+                    disabled={!defaultLogoUrl}
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 hover:border-brand-400 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-600 transition-all"
                   >
                     <i className="fas fa-wand-magic-sparkles"></i>
-                    Reapply Unicorn Logo
+                    Apply Header Logo
                   </button>
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                    {isUnicornLogoPreview ? 'Wide brand logo active' : 'Square image recommended (200x200)'}
+                    {isHeaderLogoPreview ? 'Matches the top-left school badge' : 'Square image recommended (200x200)'}
                   </p>
                 </div>
               </div>
