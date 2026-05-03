@@ -3,11 +3,11 @@ import { Course, User, UserRole } from "./types";
 
 export const INITIAL_USER: User = {
   id: 'u1',
-  name: 'Alex Johnson',
-  email: 'alex@edu.com',
+  name: 'Student User',
+  email: 'student@school.edu',
   role: UserRole.STUDENT,
-  avatar: 'https://picsum.photos/seed/alex/200',
-  studentId: 'EDU-2025-001',
+  avatar: 'https://picsum.photos/seed/student-user/200',
+  studentId: 'STUDENT-000',
   eduLevel: 'Undergraduate (Year 2)'
 };
 

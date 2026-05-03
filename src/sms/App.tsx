@@ -104,6 +104,40 @@ const toInternationalPhone = (countryCode: string, phoneValue: string) => {
   const normalizedPhone = normalizeDigits(phoneValue);
   return `${normalizedCountryCode}${normalizedPhone}`;
 };
+const normalizeOptionalText = (value: unknown) => {
+  const normalized = String(value ?? '').trim();
+  return normalized || null;
+};
+const parseOptionalInteger = (value: unknown) => {
+  const normalized = String(value ?? '').trim();
+  if (!normalized) return null;
+  const parsed = Number.parseInt(normalized, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+const parseOptionalDecimal = (value: unknown) => {
+  const normalized = String(value ?? '').trim().replace(/,/g, '');
+  if (!normalized) return null;
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+const calculateAgeFromDateOfBirth = (value: string) => {
+  const normalized = String(value || '').trim();
+  if (!normalized) return null;
+
+  const birthDate = new Date(normalized);
+  if (Number.isNaN(birthDate.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  const dayDiff = today.getDate() - birthDate.getDate();
+
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : null;
+};
 
 type EmailRegistryKind = 'student' | 'parent' | 'teacher' | 'staff';
 type EmailRegistryField = 'email' | 'parent_email' | 'secondary_parent_email';
@@ -292,6 +326,16 @@ const getInitialTeacherEnrollData = () => ({
   email: '',
   phone: '',
   address: '',
+  date_of_birth: '',
+  age: '',
+  gender: 'Male' as const,
+  nrc: '',
+  marital_status: '',
+  race: '',
+  religion: '',
+  salary: '',
+  job_position: '',
+  educational_background: '',
   avatarFile: null,
   school_id: '',
 });
@@ -2040,6 +2084,9 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         const email = getValue(row, ['email', 'teacheremail', 'mail']);
         const gender = parseGender(getValue(row, ['gender', 'sex']));
         const normalizedTeacherEmail = normalizeEmailValue(email);
+        const dateOfBirth = getValue(row, ['dateofbirth', 'birthdate', 'dob']);
+        const age = parseOptionalInteger(getValue(row, ['age'])) ?? calculateAgeFromDateOfBirth(dateOfBirth);
+        const salary = parseOptionalDecimal(getValue(row, ['salary', 'monthlysalary', 'pay']));
 
         if (!name || !email) {
           skippedRows.push(`Row ${rowNumber}: missing name or email`);
@@ -2080,6 +2127,15 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           email: newTeacher.email,
           phone: getValue(row, ['phone', 'teacherphone', 'contact']) || null,
           address: getValue(row, ['address', 'residence', 'location', 'address']) || null,
+          date_of_birth: dateOfBirth || null,
+          age,
+          nrc: getValue(row, ['nrc', 'nationalregistrationcard', 'nationalid']) || null,
+          marital_status: getValue(row, ['maritalstatus', 'marital']) || null,
+          race: getValue(row, ['race', 'ethnicity']) || null,
+          religion: getValue(row, ['religion', 'faith']) || null,
+          salary,
+          job_position: getValue(row, ['jobposition', 'position', 'jobtitle']) || null,
+          educational_background: getValue(row, ['educationalbackground', 'educationbackground', 'education', 'qualification']) || null,
           type: newTeacher.type,
           temp_password: generatedPassword,
           temp_password_created_at: new Date().toISOString(),
@@ -2237,6 +2293,15 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           avatar: finalData.avatar ?? existingTeacher?.avatar ?? null,
           phone: finalData.phone ?? existingTeacher?.phone ?? '',
           address: finalData.address ?? existingTeacher?.address ?? '',
+          date_of_birth: normalizeOptionalText(finalData.date_of_birth),
+          age: parseOptionalInteger(finalData.age),
+          nrc: normalizeOptionalText(finalData.nrc),
+          marital_status: normalizeOptionalText(finalData.marital_status),
+          race: normalizeOptionalText(finalData.race),
+          religion: normalizeOptionalText(finalData.religion),
+          salary: parseOptionalDecimal(finalData.salary),
+          job_position: normalizeOptionalText(finalData.job_position),
+          educational_background: normalizeOptionalText(finalData.educational_background),
           teacherschool_id: finalData.teacherschool_id ?? null,
         }, schoolId);
 
@@ -2274,6 +2339,15 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           avatar: data.avatar ?? existingStaff?.avatar ?? null,
           phone: data.phone ?? existingStaff?.phone ?? '',
           address: data.address ?? existingStaff?.address ?? '',
+          date_of_birth: normalizeOptionalText(data.date_of_birth),
+          age: parseOptionalInteger(data.age),
+          nrc: normalizeOptionalText(data.nrc),
+          marital_status: normalizeOptionalText(data.marital_status),
+          race: normalizeOptionalText(data.race),
+          religion: normalizeOptionalText(data.religion),
+          salary: parseOptionalDecimal(data.salary),
+          job_position: normalizeOptionalText(data.job_position),
+          educational_background: normalizeOptionalText(data.educational_background),
           staffschool_id: finalData.staffschool_id ?? null,
         }, schoolId);
 
@@ -3031,6 +3105,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       }
 
       const normalizedTeacherEmail = normalizeEmailValue(teacherEnrollData.email);
+      const resolvedTeacherAge = parseOptionalInteger(teacherEnrollData.age) ?? calculateAgeFromDateOfBirth(teacherEnrollData.date_of_birth);
+      const resolvedTeacherSalary = parseOptionalDecimal(teacherEnrollData.salary);
       const emailRegistry = await createSchoolEmailRegistry(schoolId);
       const emailConflicts = getEmailConflictMessages([
         { email: normalizedTeacherEmail, label: 'Teacher email' },
@@ -3059,11 +3135,20 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         id: generateStudentNodeId(),
         name: teacherEnrollData.name,
         role: 'teacher',
-        gender: 'Male',
+        gender: teacherEnrollData.gender,
         status: Status.PENDING,
         email: normalizedTeacherEmail,
         phone: teacherEnrollData.phone,
         address: teacherEnrollData.address,
+        date_of_birth: teacherEnrollData.date_of_birth || undefined,
+        age: resolvedTeacherAge,
+        nrc: normalizeOptionalText(teacherEnrollData.nrc),
+        marital_status: normalizeOptionalText(teacherEnrollData.marital_status),
+        race: normalizeOptionalText(teacherEnrollData.race),
+        religion: normalizeOptionalText(teacherEnrollData.religion),
+        salary: resolvedTeacherSalary,
+        job_position: normalizeOptionalText(teacherEnrollData.job_position),
+        educational_background: normalizeOptionalText(teacherEnrollData.educational_background),
         avatar: avatarUrl,
         attendanceRate: 0,
         courseAttendance: [],
@@ -3082,6 +3167,15 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         type: newTeacher.type,
         phone: newTeacher.phone,
         address: newTeacher.address,
+        date_of_birth: newTeacher.date_of_birth || null,
+        age: newTeacher.age,
+        nrc: newTeacher.nrc,
+        marital_status: newTeacher.marital_status,
+        race: newTeacher.race,
+        religion: newTeacher.religion,
+        salary: newTeacher.salary,
+        job_position: newTeacher.job_position,
+        educational_background: newTeacher.educational_background,
         avatar: newTeacher.avatar,
         auth_user_id: authUserId,
         temp_password: generatedPassword,
@@ -3097,7 +3191,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
       if (insertError) throw insertError;
 
-      const createdTeacher = mapStudentFromDB(data || newTeacher);
+      const createdTeacher = mapStudentFromDB(data || insertPayload);
       setTeachers(prev => [createdTeacher, ...prev]);
       setNewStudentCredentials({ name: createdTeacher.name, email: createdTeacher.email, password: generatedPassword });
 
@@ -3124,6 +3218,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       }
 
       const normalizedStaffEmail = normalizeEmailValue(studentServiceEnrollData.email);
+      const resolvedStaffAge = parseOptionalInteger(studentServiceEnrollData.age) ?? calculateAgeFromDateOfBirth(studentServiceEnrollData.date_of_birth);
+      const resolvedStaffSalary = parseOptionalDecimal(studentServiceEnrollData.salary);
       const emailRegistry = await createSchoolEmailRegistry(schoolId);
       const emailConflicts = getEmailConflictMessages([
         { email: normalizedStaffEmail, label: 'Staff email' },
@@ -3152,11 +3248,20 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         id: generateStudentNodeId(),
         name: studentServiceEnrollData.name,
         role: 'student_service',
-        gender: 'Male',
+        gender: studentServiceEnrollData.gender,
         status: Status.PENDING,
         email: normalizedStaffEmail,
         phone: studentServiceEnrollData.phone,
         address: studentServiceEnrollData.address,
+        date_of_birth: studentServiceEnrollData.date_of_birth || undefined,
+        age: resolvedStaffAge,
+        nrc: normalizeOptionalText(studentServiceEnrollData.nrc),
+        marital_status: normalizeOptionalText(studentServiceEnrollData.marital_status),
+        race: normalizeOptionalText(studentServiceEnrollData.race),
+        religion: normalizeOptionalText(studentServiceEnrollData.religion),
+        salary: resolvedStaffSalary,
+        job_position: normalizeOptionalText(studentServiceEnrollData.job_position),
+        educational_background: normalizeOptionalText(studentServiceEnrollData.educational_background),
         avatar: finalAvatarUrl,
         attendanceRate: 0,
         courseAttendance: [],
@@ -3175,6 +3280,15 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         type: newStaff.type,
         phone: newStaff.phone,
         address: newStaff.address,
+        date_of_birth: newStaff.date_of_birth || null,
+        age: newStaff.age,
+        nrc: newStaff.nrc,
+        marital_status: newStaff.marital_status,
+        race: newStaff.race,
+        religion: newStaff.religion,
+        salary: newStaff.salary,
+        job_position: newStaff.job_position,
+        educational_background: newStaff.educational_background,
         avatar: newStaff.avatar,
         auth_user_id: authUserId,
         temp_password: generatedPassword,
@@ -3191,7 +3305,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
       if (dbError) throw dbError;
 
-      const createdStaff = mapStudentFromDB(data || newStaff);
+      const createdStaff = mapStudentFromDB(data || insertPayload);
       setStudentServiceStaff(prev => [createdStaff, ...prev]);
       setNewStudentCredentials({ name: createdStaff.name, email: createdStaff.email, password: generatedPassword });
 
@@ -3265,6 +3379,9 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         const email = getValue(row, ['email', 'staffemail', 'mail']);
         const gender = parseGender(getValue(row, ['gender', 'sex']));
         const normalizedStaffEmail = normalizeEmailValue(email);
+        const dateOfBirth = getValue(row, ['dateofbirth', 'birthdate', 'dob']);
+        const age = parseOptionalInteger(getValue(row, ['age'])) ?? calculateAgeFromDateOfBirth(dateOfBirth);
+        const salary = parseOptionalDecimal(getValue(row, ['salary', 'monthlysalary', 'pay']));
 
         if (!name || !email) {
           skippedRows.push(`Row ${rowNumber}: missing name or email`);
@@ -3285,7 +3402,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         const newStaff: Student = {
           id: generateStudentNodeId(),
           name,
-          role: 'teacher',
+          role: 'student_service',
           gender,
           status: Status.PENDING,
           email: normalizedStaffEmail,
@@ -3305,6 +3422,15 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           email: newStaff.email,
           phone: getValue(row, ['phone', 'staffphone', 'contact']) || null,
           address: getValue(row, ['address', 'residence', 'location', 'address']) || null,
+          date_of_birth: dateOfBirth || null,
+          age,
+          nrc: getValue(row, ['nrc', 'nationalregistrationcard', 'nationalid']) || null,
+          marital_status: getValue(row, ['maritalstatus', 'marital']) || null,
+          race: getValue(row, ['race', 'ethnicity']) || null,
+          religion: getValue(row, ['religion', 'faith']) || null,
+          salary,
+          job_position: getValue(row, ['jobposition', 'position', 'jobtitle']) || null,
+          educational_background: getValue(row, ['educationalbackground', 'educationbackground', 'education', 'qualification']) || null,
           type: newStaff.type,
           temp_password: generatedPassword,
           temp_password_created_at: new Date().toISOString(),
@@ -4031,6 +4157,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       <TeacherEnrollmentModal
         isOpen={isTeacherEnrollModalOpen}
         onClose={abortTeacherEnrollFlow}
+        entityLabel="Teacher"
         enrollData={teacherEnrollData}
         setEnrollData={setTeacherEnrollData}
         onSubmit={handleTeacherEnrollSubmit}
@@ -4039,6 +4166,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       <TeacherEnrollmentModal
         isOpen={isStudentServiceEnrollModalOpen}
         onClose={abortStudentServiceEnrollFlow}
+        entityLabel="Student Service Staff"
         enrollData={studentServiceEnrollData}
         setEnrollData={setStudentServiceEnrollData}
         onSubmit={handleStudentServiceEnrollSubmit}

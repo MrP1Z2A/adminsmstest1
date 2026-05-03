@@ -1,12 +1,12 @@
 import { Student, Achievement, GradeResult, Event, Advertisement, PaymentRecord, Assignment } from './types';
 
 export const MOCK_STUDENT: Student = {
-  id: "STD-2024-089",
-  name: "Alex Johnson",
+  id: "STD-PREVIEW",
+  name: "Student Preview",
   grade: "9th Grade",
   section: "B",
   attendance: 94,
-  avatar: "https://picsum.photos/seed/alex/200/200"
+  avatar: "https://picsum.photos/seed/student-preview/200/200"
 };
 
 export const MOCK_GRADES: GradeResult[] = [

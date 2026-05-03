@@ -1530,7 +1530,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
               </h3>
               <div className="p-6 bg-[#4ea59d]/5 rounded-[32px] border border-[#4ea59d]/20 ">
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  "Alex is demonstrating exceptional mastery in <strong>theoretical sciences</strong>. While their Data Structures performance is strong (88%), our AI analysis suggests focusing on <strong>recursion logic</strong> to reach the top percentile. Overall performance is in the <strong>top 4%</strong> of the cohort."
+                  "The student is demonstrating exceptional mastery in <strong>theoretical sciences</strong>. While their Data Structures performance is strong (88%), our AI analysis suggests focusing on <strong>recursion logic</strong> to reach the top percentile. Overall performance is in the <strong>top 4%</strong> of the cohort."
                 </p>
               </div>
             </section>

@@ -183,6 +183,17 @@ create table if not exists public.teachers (
   avatar text,
   auth_user_id uuid references auth.users(id) on delete set null,
   temp_password text,
+  phone text,
+  address text,
+  date_of_birth date,
+  age integer,
+  nrc text,
+  marital_status text,
+  race text,
+  religion text,
+  salary numeric(12,2),
+  job_position text,
+  educational_background text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -194,6 +205,17 @@ alter table public.teachers add column if not exists type text;
 alter table public.teachers add column if not exists avatar text;
 alter table public.teachers add column if not exists auth_user_id uuid;
 alter table public.teachers add column if not exists temp_password text;
+alter table public.teachers add column if not exists phone text;
+alter table public.teachers add column if not exists address text;
+alter table public.teachers add column if not exists date_of_birth date;
+alter table public.teachers add column if not exists age integer;
+alter table public.teachers add column if not exists nrc text;
+alter table public.teachers add column if not exists marital_status text;
+alter table public.teachers add column if not exists race text;
+alter table public.teachers add column if not exists religion text;
+alter table public.teachers add column if not exists salary numeric(12,2);
+alter table public.teachers add column if not exists job_position text;
+alter table public.teachers add column if not exists educational_background text;
 alter table public.teachers add column if not exists created_at timestamptz default now();
 alter table public.teachers add column if not exists updated_at timestamptz default now();
 

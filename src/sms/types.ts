@@ -55,8 +55,16 @@ export interface Student {
   permissions?: StudentPermissions;
   type?: 'New' | 'Old';
   date_of_birth?: string;
+  age?: number | null;
   phone?: string;
   address?: string;
+  nrc?: string | null;
+  marital_status?: string | null;
+  race?: string | null;
+  religion?: string | null;
+  salary?: number | null;
+  job_position?: string | null;
+  educational_background?: string | null;
   parent_name?: string;
   parent_number?: string;
   parent_email?: string;
