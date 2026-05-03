@@ -9,7 +9,7 @@ import { Status, Student, PageId, StudentPermissions } from './types';
 import { supabase } from './supabaseClient';
 import { authService } from './services/authService';
 import { getCurrentTenantContext, withSchoolId } from './services/tenantService';
-import { hashPassword } from './services/cryptoUtils';
+import { verifySchoolAdminPassword } from './services/adminSecurity';
 import { DEFAULT_STAFF_ALLOWED_PAGES, normalizeStaffAllowedPages } from './utils/staffPermissions';
 import CreateSchoolPage from './components/CreateSchoolPage';
 import StaffLogin from './components/StaffLogin';
@@ -2524,15 +2524,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     setStudentDeleteError(null);
 
     try {
-      const hashedPass = await hashPassword(adminDeletePassword);
-      const { data, error } = await supabase.rpc('verify_admin_delete_password', { input_password: hashedPass });
-      if (error) {
-        console.error('Password verification error:', error);
-        setStudentDeleteError('Failed to verify admin password.');
-        return;
-      }
-
-      if (!data) {
+      const passwordOk = await verifyAdminPassword(adminDeletePassword);
+      if (!passwordOk) {
         setStudentDeleteError('Invalid admin password.');
         return;
       }
@@ -2597,6 +2590,9 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       setStudentDeleteNameInput('');
       setAdminDeletePassword('');
       setStudentDeleteError(null);
+    } catch (error) {
+      console.error('Password verification error:', error);
+      setStudentDeleteError('Failed to verify admin password.');
     } finally {
       setIsStudentDeleteSubmitting(false);
     }
@@ -2621,15 +2617,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     setClassDeleteError(null);
 
     try {
-      const hashedPass = await hashPassword(classAdminDeletePassword);
-      const { data, error } = await supabase.rpc('verify_admin_delete_password', { input_password: hashedPass });
-      if (error) {
-        console.error('Password verification error:', error);
-        setClassDeleteError('Failed to verify admin password.');
-        return;
-      }
-
-      if (!data) {
+      const passwordOk = await verifyAdminPassword(classAdminDeletePassword);
+      if (!passwordOk) {
         setClassDeleteError('Invalid admin password.');
         return;
       }
@@ -2688,6 +2677,9 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       setClassDeleteNameInput('');
       setClassAdminDeletePassword('');
       setClassDeleteError(null);
+    } catch (error) {
+      console.error('Password verification error:', error);
+      setClassDeleteError('Failed to verify admin password.');
     } finally {
       setIsClassDeleteSubmitting(false);
     }
@@ -3493,13 +3485,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
   };
 
   const verifyAdminPassword = async (password: string): Promise<boolean> => {
-    const hashedPass = await hashPassword(password);
-    const { data, error } = await supabase.rpc('verify_admin_delete_password', { input_password: hashedPass });
-    if (error) {
-      console.error('Admin password verification error:', error);
-      return false;
-    }
-    return Boolean(data);
+    const resolvedSchoolId = await requireSchoolId();
+    return await verifySchoolAdminPassword(resolvedSchoolId, password);
   };
 
   const requestStudentEditWithPassword = (student: Student) => {
@@ -3519,14 +3506,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     setStudentEditAuthError(null);
 
     try {
-      const hashedPass = await hashPassword(studentEditAuthPassword);
-      const { data, error } = await supabase.rpc('verify_admin_delete_password', { input_password: hashedPass });
-      if (error) {
-        setStudentEditAuthError('Failed to verify admin password.');
-        return;
-      }
-
-      if (!data) {
+      const passwordOk = await verifyAdminPassword(studentEditAuthPassword);
+      if (!passwordOk) {
         setStudentEditAuthError('Invalid admin password.');
         return;
       }
@@ -3535,6 +3516,9 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       setStudentEditAuthDialog(null);
       setStudentEditAuthPassword('');
       setStudentEditAuthError(null);
+    } catch (error) {
+      console.error('Admin password verification error:', error);
+      setStudentEditAuthError('Failed to verify admin password.');
     } finally {
       setIsStudentEditAuthSubmitting(false);
     }
@@ -3884,6 +3868,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
   if (onboardingStatus === 'needs-school') {
     return (
       <CreateSchoolPage
+        onBackToHubs={onSwitch}
         onCreated={(id) => {
           if (onSchoolIdChange) onSchoolIdChange(id);
           setOnboardingStatus('ready');
@@ -3901,6 +3886,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           if (onSchoolIdChange) onSchoolIdChange(undefined);
           setOnboardingStatus('needs-school');
         }}
+        onBackToHubs={onSwitch}
       />
     );
   }

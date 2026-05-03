@@ -83,6 +83,12 @@ const StudentDirectory: React.FC<StudentDirectoryProps> = ({
   const ALLOWED_PROFILE_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
   const hiddenStudentInfoKeys = new Set([
+    'school_id',
+    'schoolId',
+    'created_at',
+    'createdAt',
+    'updated_at',
+    'updatedAt',
     'temp_password',
     'temp_password_created_at',
     'avatar',
@@ -94,6 +100,7 @@ const StudentDirectory: React.FC<StudentDirectoryProps> = ({
     'courseAttendance',
     'attendanceRate',
     'securityStatus',
+    'securitystatus',
     'type',
   ]);
 

@@ -5,9 +5,10 @@ interface StaffLoginProps {
   schoolName?: string;
   onLoginSuccess: () => void;
   onBackToSchoolSelect: () => void;
+  onBackToHubs?: () => void;
 }
 
-const StaffLogin: React.FC<StaffLoginProps> = ({ schoolName, onLoginSuccess, onBackToSchoolSelect }) => {
+const StaffLogin: React.FC<StaffLoginProps> = ({ schoolName, onLoginSuccess, onBackToSchoolSelect, onBackToHubs }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -116,14 +117,24 @@ const StaffLogin: React.FC<StaffLoginProps> = ({ schoolName, onLoginSuccess, onB
           </form>
 
           <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-4">
-             <button
+            <button
+              type="button"
+              onClick={onBackToSchoolSelect}
+              className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-brand-500 transition-colors flex items-center justify-center gap-2"
+            >
+              <i className="fas fa-arrow-left"></i>
+              Switch School Instance
+            </button>
+            {onBackToHubs && (
+              <button
                 type="button"
-                onClick={onBackToSchoolSelect}
+                onClick={onBackToHubs}
                 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-brand-500 transition-colors flex items-center justify-center gap-2"
-             >
-                <i className="fas fa-arrow-left"></i>
-                Switch School Instance
-             </button>
+              >
+                <i className="fas fa-grid-2"></i>
+                Back To Hubs
+              </button>
+            )}
           </div>
         </div>
       </div>

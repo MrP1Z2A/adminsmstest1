@@ -4,6 +4,7 @@ import { hashPassword } from '../services/cryptoUtils';
 
 interface CreateSchoolPageProps {
   onCreated: (schoolId: string) => void;
+  onBackToHubs?: () => void;
 }
 
 const slugify = (text: string) =>
@@ -15,7 +16,7 @@ const slugify = (text: string) =>
 
 type AccessMode = 'lookup' | 'set-password' | 'enter-password';
 
-const CreateSchoolPage: React.FC<CreateSchoolPageProps> = ({ onCreated }) => {
+const CreateSchoolPage: React.FC<CreateSchoolPageProps> = ({ onCreated, onBackToHubs }) => {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [password, setPassword] = useState('');
@@ -244,6 +245,16 @@ const CreateSchoolPage: React.FC<CreateSchoolPageProps> = ({ onCreated }) => {
             </button>
           </div>
         </form>
+
+        {onBackToHubs && (
+          <button
+            type="button"
+            onClick={onBackToHubs}
+            className="w-full py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-black text-xs uppercase tracking-widest hover:border-brand-400 hover:text-brand-500 transition-all"
+          >
+            Back To Hubs
+          </button>
+        )}
       </div>
     </div>
   );

@@ -10,10 +10,11 @@ import logoIem from '../../sms/src/LOGO_IEM.png';
 interface LoginProps {
   // Callback used after successful auth for STUDENT or TEACHER roles.
   onLogin: (role: Exclude<UserRole, UserRole.PARENT>, email: string, schoolId?: string, recordId?: string, authUserId?: string) => void;
+  onBackToHubs?: () => void;
 }
 
 // Create a typed functional component and extract onLogin from props.
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, onBackToHubs }) => {
   // Track name or email typed by the user.
   const [identifier, setIdentifier] = useState('');
   // Track password typed by the user.
@@ -199,6 +200,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           >
             {loading ? 'Please wait...' : 'Sign In'}
           </button>
+
+          {onBackToHubs && (
+            <button
+              type="button"
+              onClick={onBackToHubs}
+              className="w-full mt-3 py-4 border border-slate-200 text-slate-600 rounded-2xl font-black uppercase hover:border-[#4ea59d] hover:text-[#1f4e4a] transition-all"
+            >
+              Back To Hubs
+            </button>
+          )}
         </div>
 
         {/* Bottom copyright notice */}

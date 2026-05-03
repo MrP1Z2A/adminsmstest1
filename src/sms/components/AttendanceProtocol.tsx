@@ -1,7 +1,7 @@
 import React from 'react';
 import { Student } from '../types';
 import { supabase } from '../supabaseClient';
-import { hashPassword } from '../services/cryptoUtils';
+import { verifySchoolAdminPassword } from '../services/adminSecurity';
 
 /**
  * AttendanceProtocol Component
@@ -1253,14 +1253,11 @@ const AttendanceProtocol: React.FC<AttendanceProtocolProps> = ({
     setIsCourseDeleteSubmitting(true);
     setDeletingCourseId(courseDeleteDialog.id);
     try {
-      const hashedPass = await hashPassword(courseDeleteAdminPassword);
-      const { data: passwordOk, error: passwordError } = await supabase
-        .rpc('verify_admin_delete_password', { input_password: hashedPass });
-
-      if (passwordError) {
-        throw new Error('Failed to verify admin password.');
+      if (!schoolId) {
+        throw new Error('School context is missing.');
       }
 
+      const passwordOk = await verifySchoolAdminPassword(schoolId, courseDeleteAdminPassword);
       if (!passwordOk) {
         throw new Error('Invalid admin password.');
       }

@@ -19,9 +19,10 @@ interface LoginPageProps {
     studentNames: string[];
     schoolId: string;
   }) => void;
+  onBackToHubs?: () => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToHubs }) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +134,16 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 </>
               )}
             </button>
+
+            {onBackToHubs && (
+              <button
+                type="button"
+                onClick={onBackToHubs}
+                className="w-full border border-slate-200 text-slate-600 font-black py-4 rounded-2xl hover:border-emerald-400 hover:text-emerald-700 transition-all"
+              >
+                Back To Hubs
+              </button>
+            )}
           </form>
 
           <div className="mt-8 pt-6 border-t border-slate-100 text-center">

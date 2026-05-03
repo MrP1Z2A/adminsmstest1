@@ -3480,7 +3480,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
   );
 
   if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />;
+    return <Login onLogin={handleLogin} onBackToHubs={onSwitch} />;
   }
 
   return (

@@ -228,7 +228,7 @@ const ParentApp: React.FC<ParentAppProps> = ({ onSwitch }) => {
     if (onSwitch) onSwitch();
   };
 
-  if (!isLoggedIn) return <LoginPage onLogin={handleLogin} />;
+  if (!isLoggedIn) return <LoginPage onLogin={handleLogin} onBackToHubs={onSwitch} />;
 
   const resolvedParentId = parentData?.parentId
     || buildParentMessagingId(parentData?.schoolId || '', parentData?.email || '');
