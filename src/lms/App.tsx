@@ -3828,10 +3828,10 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-xl bg-[#0a1a19] rounded-[32px] sm:rounded-[40px] border border-white/20 p-5 sm:p-8 shadow-2xl animate-in zoom-in duration-300 max-h-[95vh] overflow-y-auto custom-scrollbar">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase underline decoration-[#4ea59d] decoration-4 underline-offset-8">Submit Homework</h3>
+              <h3 className="text-2xl font-black text-white tracking-tighter uppercase underline decoration-[#4ea59d] decoration-4 underline-offset-8">Submit Homework</h3>
               <button
                 onClick={() => setIsSubmissionModalOpen(false)}
-                className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-900 hover:bg-white/10 transition-colors"
+                className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white hover:bg-white/10 transition-colors"
               >
                 <i className="fa-solid fa-xmark"></i>
               </button>
@@ -3840,7 +3840,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
             <div className="space-y-6">
               <div>
                 <label className="block text-[10px] font-black text-[#4ea59d] uppercase tracking-widest mb-2">Assignment</label>
-                <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-slate-900 font-bold">
+                <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-white font-bold">
                   {selectedAssignment.title}
                 </div>
               </div>
@@ -3861,7 +3861,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                       setSubmissionFile(file);
                     }
                   }}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-slate-900 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-[#4ea59d] file:text-slate-900 hover:file:bg-[#3d8c85]"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-[#4ea59d] file:text-white hover:file:bg-[#3d8c85]"
                 />
                 {submissionFileError && (
                   <p className="mt-2 text-[10px] font-black text-red-400 uppercase tracking-wider flex items-center gap-1">
@@ -3876,14 +3876,14 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                   value={submissionComment}
                   onChange={(e) => setSubmissionComment(e.target.value)}
                   placeholder="Add any notes here..."
-                  className="w-full h-32 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-slate-900 text-sm focus:outline-none focus:border-[#4ea59d] transition-colors resize-none"
+                  className="w-full h-32 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-[#4ea59d] transition-colors resize-none"
                 />
               </div>
 
               <button
                 onClick={() => setShowSubmitConfirm(true)}
                 disabled={isSubmitting || !submissionFile || !!submissionFileError || submissionStatus === 'success'}
-                className="w-full py-4 bg-[#4ea59d] hover:bg-[#3d8c85] disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 rounded-2xl font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-[#4ea59d]/20"
+                className="w-full py-4 bg-[#4ea59d] hover:bg-[#3d8c85] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-[#4ea59d]/20"
               >
                 {isSubmitting ? 'Uploading...' : 'Complete Submission'}
               </button>
@@ -3908,20 +3908,20 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
             <div className="w-16 h-16 bg-[#4ea59d]/10 rounded-full flex items-center justify-center text-[#4ea59d] text-2xl mx-auto mb-6">
               <i className="fa-solid fa-cloud-arrow-up"></i>
             </div>
-            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-4">Confirm Submission</h3>
+            <h3 className="text-xl font-black text-white uppercase tracking-tight mb-4">Confirm Submission</h3>
             <p className="text-xs text-slate-400 leading-relaxed mb-8">
               Are you sure you want to submit your homework? This action will register your solution in the SMS records.
             </p>
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setShowSubmitConfirm(false)}
-                className="py-3 bg-white/5 hover:bg-white/10 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                className="py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
               >
                 Cancel
               </button>
               <button
                 onClick={executeHomeworkSubmission}
-                className="py-3 bg-[#4ea59d] hover:bg-[#3d8c85] text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-[#4ea59d]/20"
+                className="py-3 bg-[#4ea59d] hover:bg-[#3d8c85] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-[#4ea59d]/20"
               >
                 Confirm
               </button>

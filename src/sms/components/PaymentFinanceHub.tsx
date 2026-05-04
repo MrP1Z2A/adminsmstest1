@@ -119,6 +119,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
   const [coursesMap, setCoursesMap] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [collectingStudentId, setCollectingStudentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
@@ -558,6 +559,53 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
       setError(saveError?.message || 'Failed to save payment.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const collectOutstandingPaymentsForStudent = async (studentId: string) => {
+    setError(null);
+    setStatus(null);
+
+    const student = studentMap.get(studentId);
+    if (!studentId) {
+      setError('Student is missing.');
+      return;
+    }
+
+    setCollectingStudentId(studentId);
+    try {
+      const tenantContext = await getCurrentTenantContext();
+      const resolvedSchoolId = schoolId || tenantContext.schoolId;
+
+      if (!resolvedSchoolId) {
+        throw new Error('School context is missing.');
+      }
+
+      const updateResult = await supabase
+        .from('student_payments')
+        .update({
+          status: 'paid' as PaymentStatus,
+          payment_date: getTodayIso(),
+        })
+        .eq('school_id', resolvedSchoolId)
+        .eq('student_id', studentId)
+        .in('status', ['pending', 'overdue'])
+        .select('id');
+
+      if (updateResult.error) throw updateResult.error;
+
+      const updatedCount = (updateResult.data || []).length;
+      if (updatedCount === 0) {
+        setError('No pending payments found for this student.');
+        return;
+      }
+
+      setStatus(`Collected ${updatedCount} payment record(s) for ${student?.name || studentId}.`);
+      await loadData();
+    } catch (collectError: any) {
+      setError(collectError?.message || 'Failed to collect payment.');
+    } finally {
+      setCollectingStudentId(null);
     }
   };
 
@@ -1111,6 +1159,19 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
                           {row.status === 'overdue' ? 'Overdue' : row.status === 'pending' ? 'Pending' : 'Clear'}
                         </span>
                       </div>
+
+                      {(row.totalPending + row.totalOverdue) > 0 && (
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => void collectOutstandingPaymentsForStudent(row.student.id)}
+                            disabled={isSaving || collectingStudentId === row.student.id}
+                            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-60"
+                          >
+                            {collectingStudentId === row.student.id ? 'Collecting...' : 'Collect Payment'}
+                          </button>
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
