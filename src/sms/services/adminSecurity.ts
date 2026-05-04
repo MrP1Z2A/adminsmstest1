@@ -29,6 +29,41 @@ export const updateSchoolDeletePassword = async (schoolId: string, password: str
   }
 };
 
+export const updateSchoolLoginPassword = async (schoolId: string, password: string) => {
+  const normalizedSchoolId = String(schoolId || '').trim();
+  const normalizedPassword = String(password || '').trim();
+
+  if (!normalizedSchoolId) {
+    throw new Error('School context is missing.');
+  }
+
+  if (!normalizedPassword) {
+    throw new Error('School password is required.');
+  }
+
+  if (normalizedPassword.length < 8) {
+    throw new Error('School password must be at least 8 characters long.');
+  }
+
+  const hashedPass = await hashPassword(normalizedPassword);
+  const { data, error } = await supabase
+    .from('schools')
+    .update({
+      password_hash: hashedPass,
+    })
+    .eq('id', normalizedSchoolId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data?.id) {
+    throw new Error('School login password could not be updated.');
+  }
+};
+
 const getStoredAdminPasswordHash = async (schoolId: string) => {
   const { data: securitySettings, error: securityError } = await supabase
     .from('admin_security_settings')

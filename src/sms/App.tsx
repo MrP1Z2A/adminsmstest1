@@ -9,7 +9,7 @@ import { Status, Student, PageId, StudentPermissions } from './types';
 import { supabase } from './supabaseClient';
 import { authService } from './services/authService';
 import { getCurrentTenantContext, withSchoolId } from './services/tenantService';
-import { verifySchoolAdminPassword } from './services/adminSecurity';
+import { verifySchoolAdminPassword, updateSchoolLoginPassword } from './services/adminSecurity';
 import { DEFAULT_STAFF_ALLOWED_PAGES, normalizeStaffAllowedPages } from './utils/staffPermissions';
 import CreateSchoolPage from './components/CreateSchoolPage';
 import StaffLogin from './components/StaffLogin';
@@ -70,6 +70,9 @@ const INITIAL_PARENTS: any[] = [];
 
 type AttendanceContextType = 'class' | 'subject';
 const CLOUD_SYNC_INTERVAL_SECONDS = 10;
+const DEVELOPER_MODE_TAP_TARGET = 10;
+const DEVELOPER_MODE_TAP_RESET_MS = 12000;
+const DEVELOPER_MODE_PASSWORD = 'admin0000';
 
 const normalizeClassCodeBase = (name: string) => {
   const sanitized = name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -365,6 +368,17 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
   const isCloudSyncRunningRef = useRef(false);
   const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | undefined>(undefined);
   const [currentSchoolName, setCurrentSchoolName] = useState<string | undefined>(schoolName);
+  const developerTapCountRef = useRef(0);
+  const developerTapResetTimeoutRef = useRef<number | null>(null);
+  const [isDeveloperAuthModalOpen, setIsDeveloperAuthModalOpen] = useState(false);
+  const [developerAuthPassword, setDeveloperAuthPassword] = useState('');
+  const [developerAuthError, setDeveloperAuthError] = useState<string | null>(null);
+  const [isDeveloperModeModalOpen, setIsDeveloperModeModalOpen] = useState(false);
+  const [developerSchoolPassword, setDeveloperSchoolPassword] = useState('');
+  const [developerSchoolPasswordConfirm, setDeveloperSchoolPasswordConfirm] = useState('');
+  const [developerSchoolPasswordError, setDeveloperSchoolPasswordError] = useState<string | null>(null);
+  const [developerSchoolPasswordStatus, setDeveloperSchoolPasswordStatus] = useState<string | null>(null);
+  const [isDeveloperSchoolPasswordSaving, setIsDeveloperSchoolPasswordSaving] = useState(false);
 
   // Stateful Data
   const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
@@ -670,6 +684,14 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       }
     }
   }, [onSchoolIdChange, schoolId]);
+
+  useEffect(() => {
+    return () => {
+      if (developerTapResetTimeoutRef.current !== null) {
+        window.clearTimeout(developerTapResetTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Check onboarding status on mount
   useEffect(() => {
@@ -3484,9 +3506,119 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     setIsPermissionsModalOpen(true);
   };
 
+  const resetDeveloperTapSequence = () => {
+    developerTapCountRef.current = 0;
+    if (developerTapResetTimeoutRef.current !== null) {
+      window.clearTimeout(developerTapResetTimeoutRef.current);
+      developerTapResetTimeoutRef.current = null;
+    }
+  };
+
+  const closeDeveloperAuthModal = () => {
+    setIsDeveloperAuthModalOpen(false);
+    setDeveloperAuthPassword('');
+    setDeveloperAuthError(null);
+  };
+
+  const closeDeveloperModeModal = () => {
+    if (isDeveloperSchoolPasswordSaving) return;
+    setIsDeveloperModeModalOpen(false);
+    setDeveloperSchoolPassword('');
+    setDeveloperSchoolPasswordConfirm('');
+    setDeveloperSchoolPasswordError(null);
+    setDeveloperSchoolPasswordStatus(null);
+  };
+
+  const handleDeveloperTriggerClick = () => {
+    if (isDeveloperAuthModalOpen || isDeveloperModeModalOpen) return;
+
+    developerTapCountRef.current += 1;
+
+    if (developerTapResetTimeoutRef.current !== null) {
+      window.clearTimeout(developerTapResetTimeoutRef.current);
+      developerTapResetTimeoutRef.current = null;
+    }
+
+    if (developerTapCountRef.current >= DEVELOPER_MODE_TAP_TARGET) {
+      resetDeveloperTapSequence();
+      setDeveloperAuthPassword('');
+      setDeveloperAuthError(null);
+      setIsDeveloperAuthModalOpen(true);
+      return;
+    }
+
+    developerTapResetTimeoutRef.current = window.setTimeout(() => {
+      developerTapCountRef.current = 0;
+      developerTapResetTimeoutRef.current = null;
+    }, DEVELOPER_MODE_TAP_RESET_MS);
+  };
+
+  const handleDeveloperAuthSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!developerAuthPassword.trim()) {
+      setDeveloperAuthError('Admin password is required.');
+      return;
+    }
+
+    if (developerAuthPassword.trim() !== DEVELOPER_MODE_PASSWORD) {
+      setDeveloperAuthError('Invalid admin password.');
+      return;
+    }
+
+    setDeveloperAuthPassword('');
+    setDeveloperAuthError(null);
+    setIsDeveloperAuthModalOpen(false);
+    setDeveloperSchoolPassword('');
+    setDeveloperSchoolPasswordConfirm('');
+    setDeveloperSchoolPasswordError(null);
+    setDeveloperSchoolPasswordStatus(null);
+    setIsDeveloperModeModalOpen(true);
+  };
+
   const verifyAdminPassword = async (password: string): Promise<boolean> => {
     const resolvedSchoolId = await requireSchoolId();
     return await verifySchoolAdminPassword(resolvedSchoolId, password);
+  };
+
+  const handleDeveloperSchoolPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const nextSchoolPassword = developerSchoolPassword.trim();
+    const nextSchoolPasswordConfirm = developerSchoolPasswordConfirm.trim();
+
+    if (!nextSchoolPassword) {
+      setDeveloperSchoolPasswordError('School password is required.');
+      return;
+    }
+
+    if (nextSchoolPassword.length < 8) {
+      setDeveloperSchoolPasswordError('School password must be at least 8 characters long.');
+      return;
+    }
+
+    if (nextSchoolPassword !== nextSchoolPasswordConfirm) {
+      setDeveloperSchoolPasswordError('Passwords do not match.');
+      return;
+    }
+
+    setIsDeveloperSchoolPasswordSaving(true);
+    setDeveloperSchoolPasswordError(null);
+    setDeveloperSchoolPasswordStatus(null);
+
+    try {
+      const resolvedSchoolId = await requireSchoolId();
+      await updateSchoolLoginPassword(resolvedSchoolId, nextSchoolPassword);
+      setDeveloperSchoolPassword('');
+      setDeveloperSchoolPasswordConfirm('');
+      setDeveloperSchoolPasswordStatus('School login password updated successfully.');
+      notify('School login password updated.');
+    } catch (error: any) {
+      console.error('Developer school password update error:', error);
+      setDeveloperSchoolPasswordError(error?.message || 'Failed to update school login password.');
+    } finally {
+      setIsDeveloperSchoolPasswordSaving(false);
+    }
   };
 
   const requestStudentEditWithPassword = (student: Student) => {
@@ -3939,6 +4071,130 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         </div>
       )}
 
+      {isDeveloperAuthModalOpen && (
+        <div className="fixed inset-0 z-[140] bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl p-6 space-y-5">
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-500">Hidden Access</p>
+              <h3 className="text-xl font-black tracking-tight">Developer Mode</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Enter the admin password to unlock the school login password editor.
+              </p>
+            </div>
+
+            <form onSubmit={handleDeveloperAuthSubmit} className="space-y-4">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Admin Password</label>
+                <input
+                  type="password"
+                  value={developerAuthPassword}
+                  onChange={(e) => setDeveloperAuthPassword(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 outline-none"
+                  placeholder="Enter admin password"
+                  autoFocus
+                />
+              </div>
+
+              {developerAuthError && (
+                <p className="text-xs font-bold text-rose-500">{developerAuthError}</p>
+              )}
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeDeveloperAuthModal}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs uppercase tracking-widest"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2.5 rounded-xl bg-brand-500 text-white font-bold text-xs uppercase tracking-widest"
+                >
+                  Unlock
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isDeveloperModeModalOpen && (
+        <div className="fixed inset-0 z-[145] bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl p-6 space-y-5">
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-500">Developer Mode</p>
+              <h3 className="text-xl font-black tracking-tight">School Login Password</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Update the current school's login password. This writes the new hash into <span className="font-black">schools.password_hash</span>.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-slate-50 dark:bg-slate-800/70 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">School</p>
+                <p className="mt-2 text-sm font-black text-slate-900 dark:text-slate-100">{currentSchoolName || schoolName || 'Current School'}</p>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-800/70 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Minimum Length</p>
+                <p className="mt-2 text-sm font-black text-slate-900 dark:text-slate-100">8 characters</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleDeveloperSchoolPasswordSubmit} className="space-y-4">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">New School Login Password</label>
+                <input
+                  type="password"
+                  value={developerSchoolPassword}
+                  onChange={(e) => setDeveloperSchoolPassword(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 outline-none"
+                  placeholder="Enter new school password"
+                  autoFocus
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Confirm Password</label>
+                <input
+                  type="password"
+                  value={developerSchoolPasswordConfirm}
+                  onChange={(e) => setDeveloperSchoolPasswordConfirm(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 outline-none"
+                  placeholder="Re-enter new school password"
+                />
+              </div>
+
+              {developerSchoolPasswordError && (
+                <p className="text-xs font-bold text-rose-500">{developerSchoolPasswordError}</p>
+              )}
+
+              {developerSchoolPasswordStatus && (
+                <p className="text-xs font-bold text-emerald-600">{developerSchoolPasswordStatus}</p>
+              )}
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeDeveloperModeModal}
+                  disabled={isDeveloperSchoolPasswordSaving}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs uppercase tracking-widest disabled:opacity-60"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDeveloperSchoolPasswordSaving}
+                  className={`px-4 py-2.5 rounded-xl text-white font-bold text-xs uppercase tracking-widest ${isDeveloperSchoolPasswordSaving ? 'bg-brand-300 cursor-not-allowed' : 'bg-brand-500'}`}
+                >
+                  {isDeveloperSchoolPasswordSaving ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {confirmDialog && (
         <div className="fixed inset-0 z-[120] bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl p-6 space-y-5">
@@ -4203,7 +4459,14 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
               Log Out
             </button>
             <button onClick={() => setIsDarkMode(!isDarkMode)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-brand-500 rounded-xl active:scale-75 transition-all"><i className={`fas ${isDarkMode ? 'fa-sun' : 'fa-moon'}`}></i></button>
-            <div className="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden border-2 border-slate-200 dark:border-slate-800"><img src={DEFAULT_AVATAR} className="w-full h-full object-cover" /></div>
+            <button
+              type="button"
+              onClick={handleDeveloperTriggerClick}
+              className="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden border-2 border-slate-200 dark:border-slate-800 hover:border-brand-300 transition-all active:scale-95"
+              aria-label="Developer mode access"
+            >
+              <img src={DEFAULT_AVATAR} className="w-full h-full object-cover" />
+            </button>
           </div>
         </header>
 
