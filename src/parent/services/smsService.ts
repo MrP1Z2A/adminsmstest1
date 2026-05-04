@@ -1,5 +1,12 @@
 
 import { supabase } from '../../sms/supabaseClient';
+import {
+  REPORT_CARD_BUCKET,
+  deriveFileName,
+  getAchievementDateValue,
+  getStoragePublicUrl,
+  isMissingColumnError,
+} from '../../shared/portalDataUtils';
 
 export interface SubjectResult {
   name: string;
@@ -143,12 +150,29 @@ export const fetchParentPortalData = async (
       .limit(5),
 
     // 8. Achievements - use student_id and school_id
-    supabase
-      .from('student_achievements')
-      .select('*')
-      .eq('student_id', primaryStudentId)
-      .eq('school_id', schoolId)
-      .order('achievement_date', { ascending: false }),
+    (async () => {
+      const primaryResult = await supabase
+        .from('student_achievements')
+        .select('*')
+        .eq('student_id', primaryStudentId)
+        .eq('school_id', schoolId)
+        .order('achievement_date', { ascending: false });
+
+      if (!primaryResult.error) {
+        return primaryResult;
+      }
+
+      if (!isMissingColumnError(primaryResult.error.message, ['achievement_date'])) {
+        throw primaryResult.error;
+      }
+
+      return await supabase
+        .from('student_achievements')
+        .select('*')
+        .eq('student_id', primaryStudentId)
+        .eq('school_id', schoolId)
+        .order('date', { ascending: false });
+    })(),
   ]);
 
   // --- Sub-queries for Homework ---
@@ -329,8 +353,8 @@ export const fetchParentPortalData = async (
       rank: rc.rank || '—',
       attendance: attendance.rate,
       subjects,
-      file_url: rc.file_url || rc.attachment_url,
-      file_name: rc.file_name,
+      file_url: getStoragePublicUrl(supabase, REPORT_CARD_BUCKET, rc.file_url || rc.attachment_url || rc.file_path),
+      file_name: rc.file_name || deriveFileName(rc.file_url || rc.attachment_url || rc.file_path),
       title: rc.title || rc.name,
     };
   } else if (examResults.length > 0) {
@@ -381,7 +405,7 @@ export const fetchParentPortalData = async (
         description: row.description || '',
         icon: row.icon || 'fa-award',
         color: row.color ? (row.color.startsWith('text-') ? row.color : `text-${row.color}-500`) : 'text-emerald-500',
-        date: row.achievement_date ? new Date(row.achievement_date).toLocaleDateString() : '',
+        date: getAchievementDateValue(row) ? new Date(String(getAchievementDateValue(row))).toLocaleDateString() : '',
       });
     }
   }

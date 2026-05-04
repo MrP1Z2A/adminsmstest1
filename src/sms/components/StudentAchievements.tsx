@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { Student } from '../types';
+import { getAchievementDateValue, isMissingColumnError } from '../../shared/portalDataUtils';
 
 interface StudentAchievement {
   id: string;
@@ -9,7 +10,8 @@ interface StudentAchievement {
   description: string;
   icon: string;
   color: string;
-  date: string;
+  date?: string;
+  achievement_date?: string;
   created_at: string;
 }
 
@@ -39,11 +41,25 @@ const StudentAchievements: React.FC<StudentAchievementsProps> = ({ schoolId, stu
   const fetchAchievements = async () => {
     if (!schoolId) return;
     setLoading(true);
-    const { data, error } = await supabase
+    const primaryResult = await supabase
       .from('student_achievements')
       .select('*')
       .eq('school_id', schoolId)
-      .order('date', { ascending: false });
+      .order('achievement_date', { ascending: false });
+
+    let data = primaryResult.data;
+    let error = primaryResult.error;
+
+    if (error && isMissingColumnError(error.message, ['achievement_date'])) {
+      const fallbackResult = await supabase
+        .from('student_achievements')
+        .select('*')
+        .eq('school_id', schoolId)
+        .order('date', { ascending: false });
+
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error) {
       console.error('Error fetching achievements:', error);
@@ -62,9 +78,32 @@ const StudentAchievements: React.FC<StudentAchievementsProps> = ({ schoolId, stu
     if (!schoolId || !formData.student_id) return;
 
     setIsSubmitting(true);
-    const { error } = await supabase
+    let { error } = await supabase
       .from('student_achievements')
-      .insert([{ ...formData, school_id: schoolId }]);
+      .insert([{
+        student_id: formData.student_id,
+        title: formData.title,
+        description: formData.description,
+        icon: formData.icon,
+        color: formData.color,
+        achievement_date: formData.date,
+        school_id: schoolId
+      }]);
+
+    if (error && isMissingColumnError(error.message, ['achievement_date'])) {
+      const fallbackResult = await supabase
+        .from('student_achievements')
+        .insert([{
+          student_id: formData.student_id,
+          title: formData.title,
+          description: formData.description,
+          icon: formData.icon,
+          color: formData.color,
+          date: formData.date,
+          school_id: schoolId
+        }]);
+      error = fallbackResult.error;
+    }
 
     if (error) {
       if (notify) notify('Error adding achievement: ' + error.message);
@@ -198,7 +237,9 @@ const StudentAchievements: React.FC<StudentAchievementsProps> = ({ schoolId, stu
                         </div>
                       </td>
                       <td className="px-8 py-5">
-                        <p className="text-sm font-bold text-slate-600">{new Date(ach.date).toLocaleDateString()}</p>
+                        <p className="text-sm font-bold text-slate-600">
+                          {getAchievementDateValue(ach) ? new Date(String(getAchievementDateValue(ach))).toLocaleDateString() : 'Recent'}
+                        </p>
                       </td>
                       <td className="px-8 py-5 text-right">
                         <button

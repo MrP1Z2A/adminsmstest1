@@ -10,6 +10,7 @@ import { Course, User, UserRole, View, Note, Quiz, ReportCard } from './types';
 import { INITIAL_USER, INITIAL_COURSES, SCHOOL_EVENTS, SCHOOL_ACTIVITIES, DETAILED_GRADES, STUDENT_ACHIEVEMENTS, SCHOOL_HIVE_POSTS, SCHOOL_CONTACTS } from './constants';
 import { summarizeNotes, generateQuizFromNotes } from './services/aiService';
 import { supabase, isSupabaseConfigured } from './src/supabaseClient';
+import { REPORT_CARD_BUCKET, getAchievementDateValue, getStoragePublicUrl, isMissingColumnError } from '../shared/portalDataUtils';
 import Messaging from './components/Messaging';
 import TeacherExams from './components/TeacherExams';
 import DailyAttendancePage from './components/DailyAttendancePage';
@@ -82,6 +83,10 @@ const getNoticeFileUrl = (filePath?: string | null) => {
 
   const { data } = supabase.storage.from(NOTICE_FILE_BUCKET).getPublicUrl(normalizedPath);
   return data.publicUrl;
+};
+
+const getReportCardFileUrl = (filePath?: string | null) => {
+  return getStoragePublicUrl(supabase, REPORT_CARD_BUCKET, filePath);
 };
 
 const fetchNoticeBoardData = async (
@@ -460,22 +465,40 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
                 // Achievements
                 if (studentIds.length > 0) {
-                  const { data: achievementsData } = await supabase
-                    .schema('public')
-                    .from('student_achievements')
-                    .select('*')
-                    .in('student_id', studentIds)
-                    .eq('school_id', schoolId)
-                    .order('achievement_date', { ascending: false });
+                  const achievementsResult = await (async () => {
+                    const primaryResult = await supabase
+                      .schema('public')
+                      .from('student_achievements')
+                      .select('*')
+                      .in('student_id', studentIds)
+                      .eq('school_id', schoolId)
+                      .order('achievement_date', { ascending: false });
 
-                  if (achievementsData) {
-                    setDynamicAchievements(achievementsData.map(ach => ({
+                    if (!primaryResult.error) {
+                      return primaryResult;
+                    }
+
+                    if (!isMissingColumnError(primaryResult.error.message, ['achievement_date'])) {
+                      throw primaryResult.error;
+                    }
+
+                    return await supabase
+                      .schema('public')
+                      .from('student_achievements')
+                      .select('*')
+                      .in('student_id', studentIds)
+                      .eq('school_id', schoolId)
+                      .order('date', { ascending: false });
+                  })();
+
+                  if (achievementsResult.data) {
+                    setDynamicAchievements(achievementsResult.data.map(ach => ({
                       id: ach.id,
                       title: ach.title,
                       desc: ach.description || ach.title,
                       icon: ach.icon || 'fa-award',
                       color: ach.color ? (ach.color.startsWith('text-') ? ach.color : `text-${ach.color}-500`) : 'text-emerald-500',
-                      date: ach.achievement_date ? new Date(ach.achievement_date).toLocaleDateString() : 'Recent'
+                      date: getAchievementDateValue(ach) ? new Date(String(getAchievementDateValue(ach))).toLocaleDateString() : 'Recent'
                     })));
                   }
                 }
@@ -565,6 +588,64 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                     }));
                   }
                 }
+              }
+
+              const { data: reportCardData } = await supabase
+                .schema('public')
+                .from('report_cards')
+                .select('id, report_date, report_type, title, file_path, file_name, created_at')
+                .eq('student_id', user.studentId)
+                .eq('school_id', schoolId)
+                .order('report_date', { ascending: false })
+                .order('created_at', { ascending: false });
+
+              if (reportCardData) {
+                setDynamicReportCards(reportCardData.map((row) => ({
+                  id: row.id,
+                  title: row.title || row.file_name || 'Report Card',
+                  reportDate: new Date(row.report_date || row.created_at).toLocaleDateString(),
+                  reportType: row.report_type || 'uploaded',
+                  filePath: row.file_path || null,
+                  fileName: row.file_name || null,
+                  fileUrl: getReportCardFileUrl(row.file_path || null),
+                })));
+              }
+
+              const achievementsResult = await (async () => {
+                const primaryResult = await supabase
+                  .schema('public')
+                  .from('student_achievements')
+                  .select('*')
+                  .eq('student_id', user.studentId)
+                  .eq('school_id', schoolId)
+                  .order('achievement_date', { ascending: false });
+
+                if (!primaryResult.error) {
+                  return primaryResult;
+                }
+
+                if (!isMissingColumnError(primaryResult.error.message, ['achievement_date'])) {
+                  throw primaryResult.error;
+                }
+
+                return await supabase
+                  .schema('public')
+                  .from('student_achievements')
+                  .select('*')
+                  .eq('student_id', user.studentId)
+                  .eq('school_id', schoolId)
+                  .order('date', { ascending: false });
+              })();
+
+              if (achievementsResult.data) {
+                setDynamicAchievements(achievementsResult.data.map((ach) => ({
+                  id: ach.id,
+                  title: ach.title,
+                  desc: ach.description || ach.title,
+                  icon: ach.icon || 'fa-award',
+                  color: ach.color ? (ach.color.startsWith('text-') ? ach.color : `text-${ach.color}-500`) : 'text-emerald-500',
+                  date: getAchievementDateValue(ach) ? new Date(String(getAchievementDateValue(ach))).toLocaleDateString() : 'Recent'
+                })));
               }
             }
           }
