@@ -161,7 +161,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
             {!isCollapsed && (
               <div className="flex-1 overflow-hidden">
-                <p className="text-[9px] font-black text-[#4ea59d] uppercase tracking-[0.2em] truncate">{userName || 'Student'}</p>
+                <p className="text-[9px] font-black text-[#4ea59d] uppercase tracking-[0.2em] truncate">{userName || 'User'}</p>
                 <div className="flex items-center gap-1.5">
                   <p className="text-[8px] text-slate-500 truncate">{userRole} Account</p>
                   {(studentschool_id || teacherschool_id || staffschool_id) && (

@@ -384,14 +384,21 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                 const studentIds = Array.from(new Set((studentsEnrolled || []).map(s => s.student_id)));
 
                 // Fetch Grades
-                let gradesQuery = supabase.schema('public').from('exam_grades').select('*, exams:exam_id(title)').eq('school_id', schoolId);
+                let gradesQuery = supabase
+                  .schema('public')
+                  .from('exam_grades')
+                  .select('*, student:student_id(name), exams:exam_id!inner(title, class_course_id)')
+                  .eq('school_id', schoolId)
+                  .order('created_at', { ascending: false });
+                  
                 if (studentIds.length > 0) gradesQuery = gradesQuery.in('student_id', studentIds);
-                if (courseIds.length > 0) gradesQuery = gradesQuery.in('class_course_id', courseIds);
+                if (courseIds.length > 0) gradesQuery = gradesQuery.in('exams.class_course_id', courseIds);
 
                 const { data: gradesData } = await gradesQuery;
                 if (gradesData) {
                   setExamResultsData(gradesData.map(g => ({
-                    assignment: (g.exams as any)?.title || 'Unknown Assessment',
+                    assignment: (g.exams as any)?.title || g.exam_title || 'Unknown Assessment',
+                    studentName: (g.student as any)?.name || 'Unknown Student',
                     className: g.name || 'Unknown Class',
                     courseName: g.course_name || 'Unknown Course',
                     grade: g.grade ? String(g.grade) : 'Pending',
@@ -510,7 +517,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                 .from('exam_grades')
                 .select('*, exams:exam_id(title)')
                 .eq('student_id', user.studentId)
-                .eq('school_id', schoolId);
+                .eq('school_id', schoolId)
+                .order('created_at', { ascending: false });
 
               if (gradesData) {
                 setExamResultsData(gradesData.map(g => ({
@@ -736,8 +744,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       // Load Teacher Profile
       let teacherQuery = supabase
         .from('teachers')
-        .select('*, teacherschool_id, staffschool_id')
-        .or(`email.eq.${user.email},name.eq.${user.email}`);
+        .select('*, teacherschool_id')
+        .or(`email.eq."${user.email}",name.eq."${user.email}"`);
 
       if (schoolId) teacherQuery = teacherQuery.eq('school_id', schoolId);
 
@@ -810,7 +818,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     let studentQuery = supabase
       .from('students')
       .select('id, name, avatar, email, attendanceRate, school_id, date_of_birth, parent_name, parent_number, parent_email, phone, address, studentschool_id')
-      .or(`email.eq.${user.email},name.eq.${user.email}`);
+      .or(`email.eq."${user.email}",name.eq."${user.email}"`);
 
     if (schoolId) {
       studentQuery = studentQuery.eq('school_id', schoolId);
@@ -989,7 +997,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       id: recordId || authUserId || INITIAL_USER.id,
       role,
       email,
-      name: INITIAL_USER.name,
+      name: email || INITIAL_USER.name,
       schoolId: loginSchoolId,
       studentId: role === UserRole.STUDENT ? recordId : undefined,
       teacherId: role === UserRole.TEACHER ? recordId : undefined,
@@ -2617,6 +2625,9 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                 <table className="w-full text-left bg-white/10 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
                   <thead className="bg-[#0a1a19] sticky top-0 z-10 shadow-sm">
                     <tr>
+                      {user.role === UserRole.TEACHER && (
+                        <th className="px-8 py-5 text-[10px] font-black text-[#4ea59d] uppercase tracking-widest">Student</th>
+                      )}
                       <th className="px-8 py-5 text-[10px] font-black text-[#4ea59d] uppercase tracking-widest">Assessment</th>
                       <th className="px-8 py-5 text-[10px] font-black text-[#4ea59d] uppercase tracking-widest">Mark</th>
                       <th className="px-8 py-5 text-[10px] font-black text-[#4ea59d] uppercase tracking-widest">Faculty Insight</th>
@@ -2625,6 +2636,9 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                   <tbody className="divide-y divide-[#1f4e4a]">
                     {examResultsData.map((g, i) => (
                       <tr key={i} className="hover:bg-[#0a1a19]/[0.02] transition-colors">
+                        {user.role === UserRole.TEACHER && (
+                          <td className="px-8 py-6 font-bold text-sm text-slate-900">{g.studentName}</td>
+                        )}
                         <td className="px-8 py-6 font-bold text-sm text-slate-900">{g.assignment}</td>
                         <td className="px-8 py-6 text-xl font-black text-[#4ea59d]">{g.grade}</td>
                         <td className="px-8 py-6 text-xs text-slate-400 font-medium leading-relaxed max-w-sm">{g.feedback}</td>
@@ -2632,7 +2646,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                     ))}
                     {examResultsData.length === 0 && (
                       <tr>
-                        <td colSpan={3} className="px-8 py-10 text-center text-sm text-slate-400">
+                        <td colSpan={user.role === UserRole.TEACHER ? 4 : 3} className="px-8 py-10 text-center text-sm text-slate-400">
                           No official grades available yet.
                         </td>
                       </tr>
@@ -3312,9 +3326,9 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         {/* --- TEACHER RESOURCE MODALS --- */}
         {isCreateFolderModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-fadeIn">
-            <div className="w-full max-w-lg bg-[#0a1a19] border border-white/20 rounded-[48px] overflow-hidden shadow-4xl p-10 space-y-8 text-slate-800">
+            <div className="w-full max-w-lg bg-[#0a1a19] border border-white/20 rounded-[48px] overflow-hidden shadow-4xl p-10 space-y-8 text-white">
               <div className="space-y-2">
-                <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Create Folder</h3>
+                <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Create Folder</h3>
                 <p className="text-[10px] font-black text-[#4ea59d] uppercase tracking-[0.4em]">Organize your library</p>
               </div>
 
@@ -3326,7 +3340,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
                     placeholder="e.g., Unit 1: Fundamentals"
-                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-slate-900 focus:border-[#4ea59d] transition-all outline-none"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white focus:border-[#4ea59d] transition-all outline-none"
                   />
                 </div>
               </div>
@@ -3368,7 +3382,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                       value={resourceTitle}
                       onChange={(e) => setResourceTitle(e.target.value)}
                       placeholder="e.g., Lesson 1 Overview"
-                      className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-slate-900 focus:border-[#4ea59d] transition-all outline-none"
+                      className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white focus:border-[#4ea59d] transition-all outline-none"
                     />
                   </div>
 
@@ -3378,13 +3392,13 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                       <select
                         value={selectedUploadFolder}
                         onChange={(e) => setSelectedUploadFolder(e.target.value)}
-                        className="w-full px-6 py-4 bg-[#0a1a19] border border-white/10 rounded-2xl text-slate-900 focus:border-[#4ea59d] transition-all outline-none appearance-none cursor-pointer"
+                        className="w-full px-6 py-4 bg-[#0a1a19] border border-white/10 rounded-2xl text-white focus:border-[#4ea59d] transition-all outline-none appearance-none cursor-pointer"
                       >
-                        <option value="" className="bg-[#0a1a19] text-slate-900">Root Library</option>
+                        <option value="" className="bg-[#0a1a19] text-white">Root Library</option>
                         {((selectedCourse.notes as any[]) || [])
                           .filter(i => i.type === 'folder')
                           .map(f => (
-                            <option key={f.id} value={f.title} className="bg-[#0a1a19] text-slate-900">{f.title}</option>
+                            <option key={f.id} value={f.title} className="bg-[#0a1a19] text-white">{f.title}</option>
                           ))
                         }
                       </select>
@@ -3418,7 +3432,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                       onChange={(e) => setResourceContent(e.target.value)}
                       placeholder="Contextual details for students..."
                       rows={2}
-                      className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-slate-900 focus:border-[#4ea59d] transition-all outline-none resize-none"
+                      className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white focus:border-[#4ea59d] transition-all outline-none resize-none"
                     />
                   </div>
                 </div>
@@ -3427,7 +3441,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
               <div className="flex gap-4 pt-4">
                 <button
                   onClick={() => setIsUploadResourceModalOpen(false)}
-                  className="flex-1 py-4 bg-white/5 border border-white/10 text-slate-400 rounded-2xl text-xs font-black uppercase tracking-widest hover:text-slate-900 transition-all"
+                  className="flex-1 py-4 bg-white/5 border border-white/10 text-slate-400 rounded-2xl text-xs font-black uppercase tracking-widest hover:text-white transition-all"
                 >
                   Cancel
                 </button>
@@ -3619,7 +3633,9 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         {currentView === 'timetable' && <LiveCalendar schoolId={schoolId} />}
         {currentView === 'profile' && (
           <div className="space-y-8 animate-fadeIn text-slate-800">
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tight">STUDENT PROFILE</h2>
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tight">
+              {user.role === UserRole.TEACHER ? 'Teacher Profile' : 'Student Profile'}
+            </h2>
             <div className="bg-white/10 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-6 md:p-10 rounded-[32px] md:rounded-[40px] border border-white/20 max-w-4xl shadow-2xl relative overflow-hidden">
               <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-start relative z-10">
                 <div className="flex flex-col items-center gap-4">
@@ -3655,8 +3671,12 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                       <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight">{user.name}</h3>
                     </div>
                     <div className="bg-white/5 px-4 py-2 rounded-2xl border border-white/10">
-                      <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Grade / Level</p>
-                      <p className="text-sm font-black text-[#4ea59d]">{user.grade || 'N/A'}</p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase mb-1">
+                        {user.role === UserRole.TEACHER ? 'Specialization' : 'Grade / Level'}
+                      </p>
+                      <p className="text-sm font-black text-[#4ea59d]">
+                        {user.role === UserRole.TEACHER ? (user.eduLevel || 'Faculty') : (user.grade || 'N/A')}
+                      </p>
                     </div>
                   </div>
 
@@ -3934,8 +3954,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
           <div className="w-full max-w-2xl bg-[#0a1a19] rounded-[40px] border border-white/20 p-10 shadow-3xl animate-in zoom-in-95 duration-500 max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="flex justify-between items-center mb-10">
-              <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Create New Assignment</h3>
-              <button onClick={() => setIsHomeworkComposerOpen(false)} className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-slate-900 hover:bg-white/10 transition-all">
+              <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Create New Assignment</h3>
+              <button onClick={() => setIsHomeworkComposerOpen(false)} className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white hover:bg-white/10 transition-all">
                 <i className="fa-solid fa-xmark"></i>
               </button>
             </div>
@@ -3949,7 +3969,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                     value={homeworkTitle}
                     onChange={(e) => setHomeworkTitle(e.target.value)}
                     placeholder="e.g. Calculus Weekly Quiz"
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-slate-900 font-bold focus:border-[#4ea59d] transition-all outline-none"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-bold focus:border-[#4ea59d] transition-all outline-none"
                   />
                 </div>
                 <div className="space-y-3">
@@ -3958,7 +3978,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                     type="date"
                     value={homeworkDueDate}
                     onChange={(e) => setHomeworkDueDate(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-slate-900 font-bold focus:border-[#4ea59d] transition-all outline-none"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-bold focus:border-[#4ea59d] transition-all outline-none [color-scheme:dark]"
                   />
                 </div>
               </div>
@@ -3968,7 +3988,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                 <select
                   value={assignedCourseId}
                   onChange={(e) => setAssignedCourseId(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-slate-900 font-bold focus:border-[#4ea59d] transition-all outline-none appearance-none"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-bold focus:border-[#4ea59d] transition-all outline-none appearance-none"
                 >
                   <option value="" className="bg-[#0a1a19]">Select Course</option>
                   {assignedCoursesList.map(c => (
@@ -3983,7 +4003,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                   value={homeworkDescription}
                   onChange={(e) => setHomeworkDescription(e.target.value)}
                   placeholder="Provide detailed instructions for the students..."
-                  className="w-full h-40 bg-white/5 border border-white/10 rounded-3xl px-6 py-4 text-slate-900 font-medium focus:border-[#4ea59d] transition-all outline-none resize-none"
+                  className="w-full h-40 bg-white/5 border border-white/10 rounded-3xl px-6 py-4 text-white font-medium focus:border-[#4ea59d] transition-all outline-none resize-none"
                 />
               </div>
 
@@ -3992,7 +4012,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                 <input
                   type="file"
                   onChange={(e) => setHomeworkFile(e.target.files?.[0] || null)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-slate-900 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-[#4ea59d] file:text-slate-900"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-[#4ea59d] file:text-slate-900"
                 />
               </div>
 
@@ -4013,8 +4033,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
           <div className="w-full max-w-2xl bg-[#0a1a19] rounded-[40px] border border-white/20 p-10 shadow-3xl animate-in zoom-in-95 duration-500 max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="flex justify-between items-center mb-10">
-              <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Publish New Notice</h3>
-              <button onClick={() => setIsNoticeComposerOpen(false)} className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-slate-900 hover:bg-white/10 transition-all">
+              <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Publish New Notice</h3>
+              <button onClick={() => setIsNoticeComposerOpen(false)} className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white hover:bg-white/10 transition-all">
                 <i className="fa-solid fa-xmark"></i>
               </button>
             </div>
@@ -4028,7 +4048,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                     value={noticeTitle}
                     onChange={(e) => setNoticeTitle(e.target.value)}
                     placeholder="e.g. Mid-term Postponement"
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-slate-900 font-bold focus:border-[#4ea59d] transition-all outline-none"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-bold focus:border-[#4ea59d] transition-all outline-none"
                   />
                 </div>
                 <div className="space-y-3">
@@ -4037,7 +4057,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                     type="date"
                     value={noticeDate}
                     onChange={(e) => setNoticeDate(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-slate-900 font-bold focus:border-[#4ea59d] transition-all outline-none"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-bold focus:border-[#4ea59d] transition-all outline-none [color-scheme:dark]"
                   />
                 </div>
               </div>
@@ -4105,7 +4125,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                   value={noticeMessage}
                   onChange={(e) => setNoticeMessage(e.target.value)}
                   placeholder="Compose your notice details here..."
-                  className="w-full h-40 bg-white/5 border border-white/10 rounded-3xl px-6 py-4 text-slate-900 font-medium focus:border-[#4ea59d] transition-all outline-none resize-none"
+                  className="w-full h-40 bg-white/5 border border-white/10 rounded-3xl px-6 py-4 text-white font-medium focus:border-[#4ea59d] transition-all outline-none resize-none"
                 />
               </div>
 
@@ -4114,7 +4134,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                 <input
                   type="file"
                   onChange={(e) => setNoticeFile(e.target.files?.[0] || null)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-slate-900 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-[#4ea59d] file:text-slate-900"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-[#4ea59d] file:text-slate-900"
                 />
               </div>
 
