@@ -75,6 +75,15 @@ const DEVELOPER_MODE_TAP_TARGET = 10;
 const DEVELOPER_MODE_TAP_RESET_MS = 12000;
 const DEVELOPER_MODE_PASSWORD = 'admin0000';
 
+const isCashRecordsSchemaMissing = (message?: string | null) => {
+  const text = String(message || '').toLowerCase();
+  return text.includes('cash_records') && (
+    /relation|does not exist|column/.test(text)
+    || text.includes('could not find the table')
+    || text.includes('schema cache')
+  );
+};
+
 const normalizeClassCodeBase = (name: string) => {
   const sanitized = name.toLowerCase().replace(/[^a-z0-9]/g, '');
   return sanitized || 'class';
@@ -392,7 +401,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
   const [homeworks, setHomeworks] = useState(INITIAL_HOMEWORK);
   const [programs, setPrograms] = useState(INITIAL_PROGRAMS);
   const [parents, setParents] = useState(INITIAL_PARENTS);
-  const [totalEarningMMK, setTotalEarningMMK] = useState(0);
+  const [currentCashBalanceMMK, setCurrentCashBalanceMMK] = useState(0);
   const [policies, setPolicies] = useState({
     mfaRequired: true,
     ipWhitelist: false,
@@ -612,7 +621,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     return {
       totalStudents,
       totalParents,
-      totalEarningMMK,
+      currentCashBalanceMMK,
       totalTeachers,
       totalStudentServices,
       genderBreakdown: {
@@ -624,7 +633,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         female: femaleTeachers,
       },
     };
-  }, [students, teachers, parents, allStudents, totalEarningMMK, studentServiceStaff]);
+  }, [students, teachers, parents, allStudents, currentCashBalanceMMK, studentServiceStaff]);
 
   const notify = useCallback((message: string) => {
     setNotification({ message, type: 'info' });
@@ -641,7 +650,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
       setParents([]);
       setStudentServiceStaff([]);
       setClasses([]);
-      setTotalEarningMMK(0);
+      setCurrentCashBalanceMMK(0);
       setSubjects([]);
       setLibraryItems([]);
       setExams([]);
@@ -989,25 +998,43 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     setStudentServiceStaff([]);
   };
 
-  const fetchTotalEarnings = async () => {
+  const fetchCurrentCashBalance = async () => {
     const schoolId = await requireSchoolId();
-    const { data, error } = await supabase
+    const { data: paymentRows, error: paymentError } = await supabase
       .from('student_payments')
       .select('amount_mmk, status')
       .eq('school_id', schoolId);
 
-    if (error) {
-      setTotalEarningMMK(0);
+    if (paymentError) {
+      setCurrentCashBalanceMMK(0);
       return;
     }
 
-    const total = (data || []).reduce((sum: number, row: any) => {
+    const totalCashIn = (paymentRows || []).reduce((sum: number, row: any) => {
       const status = String(row?.status || '').toLowerCase();
       if (status !== 'paid') return sum;
       return sum + Number(row?.amount_mmk || 0);
     }, 0);
 
-    setTotalEarningMMK(Math.round(total));
+    const { data: cashRecordRows, error: cashRecordError } = await supabase
+      .from('cash_records')
+      .select('amount_mmk')
+      .eq('school_id', schoolId);
+
+    if (cashRecordError) {
+      if (!isCashRecordsSchemaMissing(cashRecordError.message)) {
+        console.error('[Cash Records] Failed to calculate dashboard cash balance:', cashRecordError.message);
+      }
+      setCurrentCashBalanceMMK(Math.round(totalCashIn));
+      return;
+    }
+
+    const totalCashOut = (cashRecordRows || []).reduce(
+      (sum: number, row: any) => sum + Number(row?.amount_mmk || 0),
+      0
+    );
+
+    setCurrentCashBalanceMMK(Math.round(totalCashIn - totalCashOut));
   };
 
   const fetchClasses = async () => {
@@ -1771,7 +1798,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         setParents([]);
         setStudentServiceStaff([]);
         setClasses([]);
-        setTotalEarningMMK(0);
+        setCurrentCashBalanceMMK(0);
         setSubjects([]);
         setLibraryItems([]);
         setExams([]);
@@ -1809,7 +1836,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
           fetchParents(),
           fetchStudentServiceStaff(),
           fetchClasses(),
-          fetchTotalEarnings(),
+          fetchCurrentCashBalance(),
           fetchEvents(),
           fetchStudentActivities(),
           fetchParentAnnouncements(),
@@ -1829,7 +1856,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
     }
 
     if (currentPage === 'dashboard') {
-      void fetchTotalEarnings();
+      void fetchCurrentCashBalance();
     }
   }, [currentPage, onboardingStatus]);
 

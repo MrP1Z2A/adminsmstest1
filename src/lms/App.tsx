@@ -3120,7 +3120,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                     <div className="w-8 h-8 rounded-full bg-[#4ea59d]/10 text-[#4ea59d] flex items-center justify-center text-xs font-black">
                       {i + 1}
                     </div>
-                    <span className="text-sm font-bold text-slate-900">{t}</span>
+                    <span className="text-sm font-bold text-slate-100">{t}</span>
                   </div>
                 ))}
               </div>
@@ -3205,14 +3205,14 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                                   ) : folderFiles.map(note => (
                                     <div key={note.id} className="p-8 bg-[#0a1a19] rounded-[40px] border border-white/20 space-y-4 transition-all hover:border-[#4ea59d]/30">
                                       <div className="flex justify-between items-start flex-col sm:flex-row gap-4">
-                                        <h4 className="text-xl font-black text-slate-900">{note.title}</h4>
+                                        <h4 className="text-xl font-black text-slate-100">{note.title}</h4>
                                         {note.ebookUrl && (
                                           <a href={note.ebookUrl} target="_blank" rel="noopener noreferrer" className="px-5 py-2.5 bg-[#4ea59d]/10 border border-[#4ea59d]/20 text-[#4ea59d] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#4ea59d] hover:text-slate-900 transition-all flex items-center gap-2">
                                             <i className="fa-solid fa-download"></i> Download Asset
                                           </a>
                                         )}
                                       </div>
-                                      <p className="text-base text-slate-600 leading-relaxed">{note.content}</p>
+                                      <p className="text-base text-slate-300 leading-relaxed">{note.content}</p>
                                     </div>
                                   ))}
                                 </div>
@@ -3225,19 +3225,19 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                         {rootFiles.map(note => (
                           <div key={note.id} className="p-8 bg-[#0a1a19] rounded-[40px] border border-white/20 space-y-4 transition-all hover:border-[#4ea59d]/30 shadow-xl">
                             <div className="flex justify-between items-start flex-col sm:flex-row gap-4">
-                              <h4 className="text-xl font-black text-slate-900">{note.title}</h4>
+                              <h4 className="text-xl font-black text-slate-100">{note.title}</h4>
                               {note.ebookUrl && (
                                 <a href={note.ebookUrl} target="_blank" rel="noopener noreferrer" className="px-5 py-2.5 bg-[#4ea59d]/10 border border-[#4ea59d]/20 text-[#4ea59d] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#4ea59d] hover:text-slate-900 transition-all flex items-center gap-2">
                                   <i className="fa-solid fa-download"></i> Download Resource
                                 </a>
                               )}
                             </div>
-                            <p className="text-base text-slate-600 leading-relaxed">{note.content}</p>
+                            <p className="text-base text-slate-300 leading-relaxed">{note.content}</p>
                           </div>
                         ))}
 
                         {items.length === 0 && (
-                          <div className="p-12 text-center bg-[#0a1a19] rounded-[40px] border border-dashed border-[#1f4e4a] text-slate-600 font-black uppercase tracking-widest animate-pulse">
+                          <div className="p-12 text-center bg-[#0a1a19] rounded-[40px] border border-dashed border-[#1f4e4a] text-slate-300 font-black uppercase tracking-widest animate-pulse">
                             No learning materials available yet.
                           </div>
                         )}
@@ -3263,7 +3263,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                       </div>
                       <div>
                         <p className="text-[9px] font-black text-[#4ea59d] uppercase tracking-widest">Teacher</p>
-                        <p className="text-base font-bold text-slate-900 group-hover:text-[#4ea59d] transition-colors">{teacher.name}</p>
+                        <p className="text-base font-bold text-slate-100 group-hover:text-[#4ea59d] transition-colors">{teacher.name}</p>
                       </div>
                     </div>
                   ))
@@ -3273,8 +3273,8 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                       <i className="fa-solid fa-user-tie"></i>
                     </div>
                     <div>
-                      <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Lead Professor</p>
-                      <p className="text-base font-bold text-slate-900">{selectedCourse.subTeacherName || "Lead Professor"}</p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Lead Professor</p>
+                      <p className="text-base font-bold text-slate-100">{selectedCourse.subTeacherName || "Lead Professor"}</p>
                     </div>
                   </div>
                 )}
@@ -3308,14 +3308,14 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
                           {event.start_time.slice(0, 5)} - {event.end_time.slice(0, 5)}
                         </div>
                       </div>
-                      <h4 className="text-sm font-black text-slate-900 group-hover:text-[#4ea59d] transition-colors">{event.title}</h4>
-                      {event.notes && <p className="mt-2 text-[10px] text-slate-500 italic leading-relaxed">{event.notes}</p>}
+                      <h4 className="text-sm font-black text-slate-100 group-hover:text-[#4ea59d] transition-colors">{event.title}</h4>
+                      {event.notes && <p className="mt-2 text-[10px] text-slate-300 italic leading-relaxed">{event.notes}</p>}
                     </div>
                   ))
                 ) : (
                   <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-3xl">
-                    <i className="fa-solid fa-calendar-xmark text-slate-700 text-2xl mb-3"></i>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">No active sessions found</p>
+                    <i className="fa-solid fa-calendar-xmark text-slate-500 text-2xl mb-3"></i>
+                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">No active sessions found</p>
                   </div>
                 )}
               </div>

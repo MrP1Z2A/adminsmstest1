@@ -262,14 +262,15 @@ const DailyAttendancePage: React.FC<DailyAttendancePageProps> = ({
                 type="date"
                 value={attendanceDate}
                 onChange={(e) => setAttendanceDate(e.target.value)}
-                className="bg-transparent outline-none text-slate-900 font-bold text-xs"
+                className="bg-transparent outline-none text-slate-100 font-bold text-xs"
+                style={{ colorScheme: 'dark' }}
               />
             </div>
             
             <button
               onClick={() => void loadAttendance()}
               disabled={isLoading || isSaving}
-              className="p-3 rounded-xl bg-white/5 border border-white/10 text-slate-600 hover:bg-white/10 transition-all flex items-center justify-center"
+              className="p-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-slate-100 transition-all flex items-center justify-center"
               title="Reload Records"
             >
               {isLoading ? <i className="fas fa-spinner fa-spin text-sm"></i> : <i className="fas fa-rotate text-sm"></i>} 
@@ -300,8 +301,8 @@ const DailyAttendancePage: React.FC<DailyAttendancePageProps> = ({
                   <i className="fas fa-chevron-down text-[10px]"></i>
                </div>
                <div>
-                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Student Roster</h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+                  <h3 className="text-xl font-black text-slate-100 uppercase tracking-tight">Student Roster</h3>
+                  <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest mt-1">
                     {isRosterLoading ? (
                       <span className="flex items-center gap-2"><i className="fas fa-spinner fa-spin"></i> Syncing Records...</span>
                     ) : (
@@ -310,7 +311,7 @@ const DailyAttendancePage: React.FC<DailyAttendancePageProps> = ({
                   </p>
                </div>
             </div>
-            <div className="hidden md:flex items-center gap-4 text-[9px] font-black uppercase tracking-widest">
+            <div className="hidden md:flex items-center gap-4 text-[9px] font-black uppercase tracking-widest text-slate-300">
                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#4ea59d]"></div> Present</span>
                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-500"></div> Absent</span>
                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500"></div> Leave</span>
@@ -328,8 +329,8 @@ const DailyAttendancePage: React.FC<DailyAttendancePageProps> = ({
                             {student.name.charAt(0)}
                          </div>
                          <div>
-                            <p className="font-bold text-slate-900 text-base tracking-tight">{student.name}</p>
-                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-0.5">{student.email || 'Independent ID'}</p>
+                            <p className="font-bold text-slate-100 text-base tracking-tight">{student.name}</p>
+                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">{student.email || 'Independent ID'}</p>
                          </div>
                       </div>
 
@@ -345,7 +346,7 @@ const DailyAttendancePage: React.FC<DailyAttendancePageProps> = ({
                               key={status}
                               onClick={() => void saveSingle(String(student.id), status)}
                               disabled={isSaving}
-                              className={`w-12 h-12 rounded-2xl text-[10px] font-black transition-all ${active ? activeClass : 'bg-white/5 text-slate-500 hover:text-slate-900 border border-white/5'}`}
+                              className={`w-12 h-12 rounded-2xl text-[10px] font-black transition-all ${active ? activeClass : 'bg-white/5 text-slate-300 hover:text-slate-100 border border-white/5'}`}
                             >
                               {status}
                             </button>
@@ -359,8 +360,8 @@ const DailyAttendancePage: React.FC<DailyAttendancePageProps> = ({
           )}
          {!isRosterCollapsed && activeStudents.length === 0 && (
             <div className="p-20 text-center space-y-4">
-               <i className="fas fa-users-slash text-4xl text-slate-700"></i>
-               <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.3em]">No Personnel Records Found</p>
+               <i className="fas fa-users-slash text-4xl text-slate-500"></i>
+               <p className="text-slate-300 text-[11px] font-black uppercase tracking-[0.3em]">No Personnel Records Found</p>
             </div>
          )}
       </div>
