@@ -154,6 +154,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <SidebarMenuItem id="about-school" icon="fa-circle-info" label="About School" activePage={currentPage} />
         <SidebarMenuItem id="security" icon="fa-user-shield" label="Security Permission" activePage={currentPage} />
         <SidebarMenuItem id="messages" icon="fa-comments" label="Messages" activePage={currentPage} />
+        <SidebarMenuItem id="video-conference" icon="fa-video" label="Video Conference" activePage={currentPage} />
 
 
         <div className="mt-auto px-8 mb-8 space-y-4">

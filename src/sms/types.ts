@@ -123,4 +123,5 @@ export type PageId =
   | 'messages'
   | 'class-group-management'
   | 'sms-attendance'
-  | 'teacher-attendance';
+  | 'teacher-attendance'
+  | 'video-conference';

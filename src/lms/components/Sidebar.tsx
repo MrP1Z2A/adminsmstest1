@@ -68,6 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     { id: 'profile', label: 'PROFILE', icon: 'fa-id-card', roles: [UserRole.STUDENT, UserRole.PARENT, UserRole.TEACHER] },
     { id: 'instruction', label: 'Instruction Page', icon: 'fa-book-open', roles: [UserRole.STUDENT, UserRole.PARENT, UserRole.TEACHER] },
     { id: 'courses', label: 'Courses', icon: 'fa-graduation-cap', roles: [UserRole.STUDENT, UserRole.TEACHER] },
+    { id: 'video-conference', label: 'Video Conference', icon: 'fa-video', roles: [UserRole.STUDENT, UserRole.TEACHER] },
     { id: 'activity', label: 'Activity', icon: 'fa-chart-line', roles: [UserRole.STUDENT, UserRole.TEACHER] },
     { id: 'homework', label: 'Homework', icon: 'fa-tasks', roles: [UserRole.STUDENT, UserRole.TEACHER] },
     { id: 'exams', label: 'Exams', icon: 'fa-clipboard-check', roles: [UserRole.TEACHER] },

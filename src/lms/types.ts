@@ -124,7 +124,8 @@ export type View =
   | 'exams'
   | 'live-intel-detail'
   | 'about-school'
-  | 'parent-portal';
+  | 'parent-portal'
+  | 'video-conference';
 
 
 export interface Student {

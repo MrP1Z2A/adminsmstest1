@@ -14,6 +14,7 @@ import { REPORT_CARD_BUCKET, getAchievementDateValue, getStoragePublicUrl, isMis
 import Messaging from './components/Messaging';
 import TeacherExams from './components/TeacherExams';
 import DailyAttendancePage from './components/DailyAttendancePage';
+import { VideoConference } from '../shared/components/VideoConference';
 
 type NoticeItem = {
   id: string;
@@ -3632,6 +3633,28 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         {currentView === 'live-intel-detail' && renderLiveIntelDetail()}
         {currentView === 'exams' && renderExams()}
         {currentView === 'timetable' && <LiveCalendar schoolId={schoolId} />}
+        {currentView === 'video-conference' && (
+          <VideoConference
+            user={{
+              id: user.id || 'dev-user',
+              name: user.name || 'Anonymous User',
+              email: user.email || 'user@example.com',
+              role: user.role
+            }}
+            schoolId={schoolId}
+            courses={courses.map(c => ({
+              id: c.id,
+              title: c.title,
+              category: c.category,
+              description: c.description,
+              subTeacherName: c.subTeacherName,
+              scheduleDescription: c.scheduleDescription
+            }))}
+            isTeacher={user.role === UserRole.TEACHER}
+            assignedCourseIds={assignedCourseIds}
+            supabase={supabase}
+          />
+        )}
         {currentView === 'profile' && (
           <div className="space-y-8 animate-fadeIn text-slate-800">
             <h2 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tight">

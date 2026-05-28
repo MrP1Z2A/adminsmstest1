@@ -37,6 +37,7 @@ import MessagesOversight from './components/MessagesOversight';
 import ClassGroupManagement from './components/ClassGroupManagement';
 import AttendanceTaker from './components/AttendanceTaker';
 import TeacherAttendance from './components/TeacherAttendance';
+import { VideoConference } from '../shared/components/VideoConference';
 
 import EnrollmentModal from './components/Modals/EnrollmentModal';
 import TeacherEnrollmentModal from './components/Modals/TeacherEnrollmentModal';
@@ -4814,6 +4815,27 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
 
           {currentPage === 'teacher-attendance' && schoolId && (
             <TeacherAttendance schoolId={schoolId} />
+          )}
+
+          {currentPage === 'video-conference' && (
+            <VideoConference
+              user={{
+                id: 'admin-developer',
+                name: 'Administrator',
+                email: 'admin@iem.edu',
+                role: 'admin'
+              }}
+              schoolId={schoolId}
+              courses={subjects.map(s => ({
+                id: s.id,
+                title: s.name,
+                category: s.code,
+                subTeacherName: s.teacher,
+                scheduleDescription: 'Mon/Wed 10:00 AM'
+              }))}
+              isTeacher={true}
+              supabase={supabase}
+            />
           )}
 
           {/* SUBJECT PAGE - WITH CRUD */}
