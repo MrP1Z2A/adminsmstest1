@@ -1,6 +1,6 @@
 port: 7880
 keys:
-  devkey: secret
+  devkey1234567890: supersecretkeythatisatleast32characterslong
 logging:
   level: info
 rtc:
@@ -8,3 +8,16 @@ rtc:
   port_range_start: 7882
   port_range_end: 7882
   use_external_ip: false
+  turn_servers:
+    - host: "54.179.59.35"
+      port: 3478
+      protocol: "udp"
+      username: "iem_student"
+      credential: "iem_secure_pass_2026"
+    - host: "54.179.59.35"
+      port: 3478
+      protocol: "tcp"
+      username: "iem_student"
+      credential: "iem_secure_pass_2026"
+
+
