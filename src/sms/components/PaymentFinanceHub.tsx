@@ -1014,8 +1014,8 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
 
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-700">
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-700 rounded-[40px] p-6 sm:p-8 lg:p-10 text-white shadow-premium">
-        <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-emerald-200">Finance Control</p>
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-brand-700 rounded-[40px] p-6 sm:p-8 lg:p-10 text-white shadow-premium">
+        <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-brand-200">Finance Control</p>
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter mt-2">{pageMeta[view].title}</h2>
         <p className="text-slate-200 mt-3 text-sm sm:text-base">{pageMeta[view].subtitle}</p>
       </div>
@@ -1023,7 +1023,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
       {(error || status) && (
         <div className="space-y-2">
           {error && <p className="text-sm font-semibold text-rose-600 bg-rose-50 rounded-2xl px-4 py-3">{error}</p>}
-          {status && <p className="text-sm font-semibold text-emerald-700 bg-emerald-50 rounded-2xl px-4 py-3">{status}</p>}
+          {status && <p className="text-sm font-semibold text-brand-700 bg-brand-50 rounded-2xl px-4 py-3">{status}</p>}
         </div>
       )}
 
@@ -1227,7 +1227,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
                     const academic = getStudentAcademic(student.id);
                     const isSelected = selectedStudentIds.includes(student.id);
                     return (
-                      <label key={student.id} className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 cursor-pointer transition-all ${isSelected ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 dark:border-slate-700'}`}>
+                      <label key={student.id} className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 cursor-pointer transition-all ${isSelected ? 'border-brand-400 bg-brand-50' : 'border-slate-200 dark:border-slate-700'}`}>
                         <div className="flex items-center gap-3 min-w-0">
                           <input
                             type="checkbox"
@@ -1242,7 +1242,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
                         </div>
                         <div className="hidden sm:flex flex-wrap gap-2 justify-end">
                           <span className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-black">{academic.className}</span>
-                          <span className="px-2.5 py-1 rounded-lg bg-cyan-50 text-cyan-700 text-[11px] font-black">{academic.courseName}</span>
+                          <span className="px-2.5 py-1 rounded-lg bg-brand-50 text-brand-700 text-[11px] font-black">{academic.courseName}</span>
                         </div>
                       </label>
                     );
@@ -1255,7 +1255,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
                   type="button"
                   onClick={() => void assignPaymentsToSelectedStudents()}
                   disabled={isSaving}
-                  className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black uppercase tracking-widest disabled:opacity-60"
+                  className="px-5 py-3 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-black uppercase tracking-widest disabled:opacity-60"
                 >
                   {isSaving ? 'Assigning...' : 'Assign Pending Dues'}
                 </button>
@@ -1357,7 +1357,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
                               ? 'bg-rose-50 text-rose-700'
                               : row.status === 'pending'
                                 ? 'bg-amber-50 text-amber-700'
-                                : 'bg-emerald-50 text-emerald-700'
+                                : 'bg-brand-50 text-brand-700'
                           }`}
                         >
                           {row.status === 'overdue' ? 'Overdue' : row.status === 'pending' ? 'Pending' : 'Clear'}
@@ -1378,9 +1378,9 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
                       )}
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Paid</p>
-                          <p className="text-sm font-black text-emerald-700 mt-1">{formatMMK(row.totalPaid)}</p>
+                        <div className="rounded-xl border border-brand-200 bg-brand-50 p-3">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-brand-700">Paid</p>
+                          <p className="text-sm font-black text-brand-700 mt-1">{formatMMK(row.totalPaid)}</p>
                         </div>
                         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                           <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Pending</p>
@@ -1401,10 +1401,10 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
           {view === 'cash-records' && (
             <div className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-5">
-                  <p className="text-[11px] font-black uppercase tracking-widest text-emerald-700">Money In</p>
-                  <p className="mt-3 text-2xl font-black text-emerald-700">{formatMMK(totalCashIn)}</p>
-                  <p className="mt-2 text-xs font-semibold text-emerald-700/80">{payments.filter(payment => payment.status === 'paid').length} paid student record(s)</p>
+                <div className="rounded-[28px] border border-brand-200 bg-brand-50 p-5">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-brand-700">Money In</p>
+                  <p className="mt-3 text-2xl font-black text-brand-700">{formatMMK(totalCashIn)}</p>
+                  <p className="mt-2 text-xs font-semibold text-brand-700/80">{payments.filter(payment => payment.status === 'paid').length} paid student record(s)</p>
                 </div>
                 <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-5">
                   <p className="text-[11px] font-black uppercase tracking-widest text-rose-700">Money Out</p>
@@ -1425,7 +1425,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
               )}
 
               <div className="grid grid-cols-1 xl:grid-cols-[360px,minmax(0,1fr)] gap-5">
-                <form onSubmit={submitCashOutRecord} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[36px] p-5 sm:p-6 shadow-premium space-y-5">
+                <form onSubmit={submitCashOutRecord} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[36px] p-5 sm:p-6 shadow-premium space-y-5 max-h-[70vh] xl:max-h-[80vh] overflow-y-auto">
                   <div className="space-y-2">
                     <p className="text-[11px] font-black uppercase tracking-widest text-rose-500">Money Out Only</p>
                     <h3 className="text-2xl font-black tracking-tight">Add Cash Out Record</h3>
@@ -1512,7 +1512,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
                             <div className="flex flex-wrap items-center gap-2">
                               <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
                                 entry.entry_type === 'in'
-                                  ? 'bg-emerald-50 text-emerald-700'
+                                  ? 'bg-brand-50 text-brand-700'
                                   : 'bg-rose-50 text-rose-700'
                               }`}>
                                 {entry.entry_type === 'in' ? 'Money In' : 'Money Out'}
@@ -1525,7 +1525,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
                             <p className="text-xs font-semibold text-slate-500">{entry.subtitle}</p>
                             {entry.note && <p className="text-xs text-slate-500">{entry.note}</p>}
                           </div>
-                          <div className={`text-lg font-black ${entry.entry_type === 'in' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                          <div className={`text-lg font-black ${entry.entry_type === 'in' ? 'text-brand-700' : 'text-rose-700'}`}>
                             {entry.entry_type === 'in' ? '+' : '-'}{formatMMK(entry.amount_mmk)}
                           </div>
                         </div>

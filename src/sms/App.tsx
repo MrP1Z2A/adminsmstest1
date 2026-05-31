@@ -4086,7 +4086,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f8fafc] dark:bg-slate-950 transition-colors duration-500 relative">
+    <div className="flex min-h-screen bg-[#f3f0e8] dark:bg-[#0a1a19] transition-colors duration-500 relative">
 
       <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9998] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-premium rounded-2xl px-4 py-2">
         <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
@@ -4511,7 +4511,7 @@ const App: React.FC<AppProps> = ({ onSwitch, schoolId, schoolName, onSchoolIdCha
         <header className="h-20 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-40 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-4 sm:gap-8">
             <button className="lg:hidden p-3 text-slate-500 hover:text-brand-500 transition-all" onClick={() => setIsMobileMenuOpen(true)}><i className="fas fa-bars-staggered"></i></button>
-            <div className="hidden sm:flex flex-col"><span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400"></span><span className="text-xs font-bold text-emerald-500"></span></div>
+            <div className="hidden sm:flex flex-col"><span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400"></span><span className="text-xs font-bold text-brand-500"></span></div>
           </div>
           <div className="flex items-center gap-3 sm:gap-6">
             <button

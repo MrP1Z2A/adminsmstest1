@@ -56,7 +56,7 @@ const StudentHub: React.FC<StudentHubProps> = ({ studentNames, studentIds, schoo
         <div className="px-8 pb-8">
           <div className="relative flex flex-col md:flex-row md:items-end -mt-14 space-y-5 md:space-y-0 md:space-x-7">
             <div className="relative group/avatar">
-              <div className="w-36 h-36 rounded-[2rem] border-[5px] border-white shadow-2xl bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center text-5xl font-black text-emerald-600">
+              <div className="w-36 h-36 rounded-[2rem] border-[5px] border-white shadow-2xl bg-gradient-to-br from-brand-100 to-brand-50 flex items-center justify-center text-5xl font-black text-brand-600">
                 {studentName.charAt(0).toUpperCase()}
               </div>
               <div className="absolute bottom-3 right-3 bg-emerald-600 p-2 rounded-xl text-white shadow-lg border-2 border-white">
@@ -65,7 +65,7 @@ const StudentHub: React.FC<StudentHubProps> = ({ studentNames, studentIds, schoo
             </div>
             <div className="flex-1 pb-2">
               <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">{studentName}</h2>
-              <p className="text-emerald-600 font-black uppercase text-xs tracking-[0.2em] mt-2">Student ID: {studentId}</p>
+              <p className="text-brand-600 font-black uppercase text-xs tracking-[0.2em] mt-2">Student ID: {studentId}</p>
             </div>
             <div className="pb-2">
               {reportCard?.file_url ? (
@@ -89,7 +89,7 @@ const StudentHub: React.FC<StudentHubProps> = ({ studentNames, studentIds, schoo
             {/* Quick Stats */}
             <div className="space-y-4">
               <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
-                <User className="w-4 h-4 text-emerald-600" /> Quick Stats
+                <User className="w-4 h-4 text-brand-600" /> Quick Stats
               </h3>
               {[
                 { icon: Hash, label: 'Student ID', value: studentId },
@@ -106,14 +106,14 @@ const StudentHub: React.FC<StudentHubProps> = ({ studentNames, studentIds, schoo
             {/* Achievements */}
             <div className="md:col-span-2">
               <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3 mb-5">
-                <Trophy className="w-4 h-4 text-emerald-600" /> Merit &amp; Honors
+                <Trophy className="w-4 h-4 text-brand-600" /> Merit &amp; Honors
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {data?.achievements && data.achievements.length > 0 ? (
                   data.achievements.map(ach => (
                     <div key={ach.id} className="bg-emerald-50/30 border border-emerald-100/50 p-5 rounded-[1.5rem] flex items-center gap-4 hover:bg-emerald-50 transition-all group">
                       <div className="bg-white p-3 rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
-                        <Award className={`w-6 h-6 ${ach.color || 'text-emerald-600'}`} />
+                        <Award className={`w-6 h-6 ${ach.color || 'text-brand-600'}`} />
                       </div>
                       <div>
                         <h4 className="font-black text-slate-800 text-sm tracking-tight">{ach.title}</h4>
@@ -137,9 +137,9 @@ const StudentHub: React.FC<StudentHubProps> = ({ studentNames, studentIds, schoo
         <div className="lg:col-span-2 bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
           <div className="p-7 border-b border-slate-50 flex items-center justify-between">
             <h3 className="font-black text-slate-900 flex items-center gap-3 uppercase tracking-tight">
-              <BookOpen className="w-5 h-5 text-emerald-600" /> Academic Transcript
+              <BookOpen className="w-5 h-5 text-brand-600" /> Academic Transcript
             </h3>
-            <span className="text-[10px] text-emerald-600 font-black uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-100">
+            <span className="text-[10px] text-brand-600 font-black uppercase tracking-widest bg-brand-50 px-3 py-1 rounded-lg border border-brand-100">
               {reportCard?.term || 'Current Term'}
             </span>
           </div>
@@ -194,7 +194,7 @@ const StudentHub: React.FC<StudentHubProps> = ({ studentNames, studentIds, schoo
         {/* Term Summary */}
         <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-7 flex flex-col gap-5">
           <h3 className="font-black text-slate-900 flex items-center gap-3 uppercase tracking-tight">
-            <Clock className="w-5 h-5 text-emerald-600" /> Term Matrix
+            <Clock className="w-5 h-5 text-brand-600" /> Term Matrix
           </h3>
           <div className="bg-emerald-50 p-6 rounded-[1.5rem] border border-emerald-100">
             <p className="text-[10px] font-black text-emerald-800 uppercase tracking-[0.2em] mb-2">Attendance Rate</p>

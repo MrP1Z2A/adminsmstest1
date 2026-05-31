@@ -49,7 +49,7 @@ const Finance: React.FC<FinanceProps> = ({ studentIds, schoolId }) => {
     const totalPending = payments.filter(p => p.status !== 'Paid').reduce((s, p) => s + p.amount, 0);
     
     doc.setFontSize(12);
-    doc.setTextColor(2, 44, 34); // emerald-950
+    doc.setTextColor(2, 44, 34); // brand-950
     doc.text(`Total Paid: $${totalPaid.toLocaleString()}`, 14, 45);
     doc.setTextColor(153, 27, 27); // rose-800
     doc.text(`Outstanding Balance: $${totalPending.toLocaleString()}`, 14, 52);
@@ -68,7 +68,7 @@ const Finance: React.FC<FinanceProps> = ({ studentIds, schoolId }) => {
       head: [['Date', 'Description', 'Amount', 'Status', 'Note']],
       body: tableData,
       theme: 'striped',
-      headStyles: { fillColor: [5, 150, 105] }, // emerald-600
+      headStyles: { fillColor: [78, 165, 157] }, // brand-500
       styles: { fontSize: 9, cellPadding: 5 },
       columnStyles: {
         2: { halign: 'right' },
@@ -211,7 +211,7 @@ const Finance: React.FC<FinanceProps> = ({ studentIds, schoolId }) => {
           </div>
         </div>
         <div className="flex flex-col justify-center gap-3">
-          <button className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl hover:bg-emerald-600 transition-all flex items-center justify-center gap-3 text-xs uppercase tracking-widest shadow-xl active:scale-[0.98]">
+          <button className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl hover:bg-brand-600 transition-all flex items-center justify-center gap-3 text-xs uppercase tracking-widest shadow-xl active:scale-[0.98]">
             <Plus className="w-5 h-5" /> Online Payment
           </button>
           <button onClick={() => setShowQr(true)} className="w-full bg-white text-emerald-600 border-2 border-emerald-100 font-black py-3 rounded-2xl hover:bg-emerald-50 transition-all flex items-center justify-center gap-3 text-xs uppercase tracking-widest">

@@ -79,8 +79,8 @@ const normalizeInquiryStatus = (value?: string | null) => String(value || '').tr
 
 const getInquiryStatusClasses = (status: string) => {
   const normalized = normalizeInquiryStatus(status);
-  if (normalized === 'resolved') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300';
-  if (normalized === 'read') return 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300';
+  if (normalized === 'resolved') return 'bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300';
+  if (normalized === 'read') return 'bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300';
   return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300';
 };
 
@@ -433,7 +433,7 @@ const MessagesOversight: React.FC<MessagesOversightProps> = ({ schoolId, schoolN
           { label: 'Group Chats', value: totalGroups, icon: 'fa-user-group', color: 'text-indigo-500 bg-indigo-500/10' },
           { label: 'Unread Messages', value: unreadMessages, icon: 'fa-bell', color: 'text-rose-500 bg-rose-500/10' },
           { label: 'Parent Inquiries', value: totalInquiries, icon: 'fa-envelope-open-text', color: 'text-amber-500 bg-amber-500/10' },
-          { label: 'Unread Inquiries', value: unreadInquiries, icon: 'fa-circle-exclamation', color: 'text-emerald-500 bg-emerald-500/10' },
+          { label: 'Unread Inquiries', value: unreadInquiries, icon: 'fa-circle-exclamation', color: 'text-brand-500 bg-brand-500/10' },
         ].map(stat => (
           <div key={stat.label} className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${stat.color}`}>
@@ -625,7 +625,7 @@ const MessagesOversight: React.FC<MessagesOversightProps> = ({ schoolId, schoolN
                               <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
                                 senderUser.role === 'teacher' ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400' :
                                 senderUser.role === 'student_service' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400' :
-                                senderUser.role === 'parent' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' :
+                                senderUser.role === 'parent' ? 'bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300' :
                                 'bg-brand-500/10 text-brand-600'
                               }`}>{senderUser.role.replace('_', ' ')}</span>
                             )}

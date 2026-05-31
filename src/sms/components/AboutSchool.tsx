@@ -241,7 +241,7 @@ export default function AboutSchool({ schoolId, onSchoolProfileChange }: AboutSc
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-700">
       <div className="bg-gradient-to-r from-brand-900 via-indigo-800 to-purple-700 rounded-[40px] p-6 sm:p-8 lg:p-10 text-white shadow-premium">
-        <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-cyan-200">Institutional Management</p>
+        <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-brand-200">Institutional Management</p>
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter mt-2">About School</h2>
         <p className="text-slate-200 mt-3 text-sm sm:text-base">Manage your school's public profile, contact info, and branding assets.</p>
       </div>
@@ -249,7 +249,7 @@ export default function AboutSchool({ schoolId, onSchoolProfileChange }: AboutSc
       {(error || status) && (
         <div className="space-y-2">
           {error && <p className="text-sm font-semibold text-rose-600 bg-rose-50 rounded-2xl px-4 py-3">{error}</p>}
-          {status && <p className="text-sm font-semibold text-emerald-700 bg-emerald-50 rounded-2xl px-4 py-3">{status}</p>}
+          {status && <p className="text-sm font-semibold text-brand-700 bg-brand-50 rounded-2xl px-4 py-3">{status}</p>}
         </div>
       )}
 
@@ -420,7 +420,7 @@ export default function AboutSchool({ schoolId, onSchoolProfileChange }: AboutSc
         </div>
 
         {securityError && <p className="text-xs font-bold text-rose-600 bg-rose-50 rounded-xl px-4 py-3">{securityError}</p>}
-        {securityStatus && <p className="text-xs font-bold text-emerald-700 bg-emerald-50 rounded-xl px-4 py-3">{securityStatus}</p>}
+        {securityStatus && <p className="text-xs font-bold text-brand-700 bg-brand-50 rounded-xl px-4 py-3">{securityStatus}</p>}
 
         <form onSubmit={handleSecuritySubmit} className="space-y-4">
           <label className="space-y-2 block">

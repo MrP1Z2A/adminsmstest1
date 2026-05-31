@@ -131,7 +131,7 @@ const InstitutionHub: React.FC<InstitutionHubProps> = ({ schoolId, parentEmail }
               <div>
                 <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">{school.name}</h2>
                 <p className="text-slate-500 flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest mt-1">
-                  <MapPin className="w-4 h-4 text-emerald-600" /> {school.address || 'Campus Location'}
+                  <MapPin className="w-4 h-4 text-brand-600" /> {school.address || 'Campus Location'}
                 </p>
               </div>
             </div>
@@ -163,7 +163,7 @@ const InstitutionHub: React.FC<InstitutionHubProps> = ({ schoolId, parentEmail }
 
             <div className="mt-10">
               <h3 className="font-bold text-slate-900 mb-6 flex items-center gap-2 uppercase tracking-tight">
-                <Share2 className="w-5 h-5 text-emerald-600" /> Digital Community
+                <Share2 className="w-5 h-5 text-brand-600" /> Digital Community
               </h3>
               <div className="flex gap-4">
                 <button className="p-4 bg-slate-50 text-slate-400 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all hover:scale-110 active:scale-95 shadow-sm"><Share2 className="w-5 h-5" /></button>
@@ -179,7 +179,7 @@ const InstitutionHub: React.FC<InstitutionHubProps> = ({ schoolId, parentEmail }
         <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-8">
           <div className="mb-8">
             <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3 uppercase tracking-tighter">
-              <MessageSquare className="w-8 h-8 text-emerald-600" />
+              <MessageSquare className="w-8 h-8 text-brand-600" />
               Parent Inquiry
             </h2>
             <p className="text-slate-500 mt-2 font-medium">Have questions? Send a direct message to the administration.</p>
@@ -188,7 +188,7 @@ const InstitutionHub: React.FC<InstitutionHubProps> = ({ schoolId, parentEmail }
           {/* Success Banner */}
           {sendSuccess && (
             <div className="flex items-start gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl animate-fadeIn">
-              <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <CheckCircle className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-black text-emerald-800">Inquiry Dispatched!</p>
                 <p className="text-xs text-emerald-700 mt-0.5">Your message has been sent to the school administration. They will follow up with you shortly.</p>

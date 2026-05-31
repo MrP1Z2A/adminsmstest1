@@ -114,7 +114,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToHubs }) => {
             </div>
 
             <div className="bg-emerald-50 rounded-2xl p-4 flex gap-3 items-start border border-emerald-100">
-              <Info className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+              <Info className="w-4 h-4 text-brand-600 mt-0.5 shrink-0" />
               <div className="text-[11px] text-emerald-800 leading-relaxed font-bold">
                 Enter the email address you registered with the school. No password is required for this gateway.
               </div>

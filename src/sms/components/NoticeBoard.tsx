@@ -19,7 +19,7 @@ const priorityOptions: Array<NoticeItem['priority']> = ['low', 'medium', 'high',
 
 const priorityBadgeClassMap: Record<NoticeItem['priority'], string> = {
   low: 'bg-slate-100 text-slate-700',
-  medium: 'bg-sky-100 text-sky-700',
+  medium: 'bg-brand-100 text-brand-700',
   high: 'bg-amber-100 text-amber-700',
   urgent: 'bg-rose-100 text-rose-700',
 };
@@ -254,8 +254,8 @@ export default function NoticeBoard({ onOpenNotice, schoolId }: NoticeBoardProps
 
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-700">
-      <div className="bg-gradient-to-r from-indigo-900 via-blue-800 to-cyan-700 rounded-[40px] p-6 sm:p-8 lg:p-10 text-white shadow-premium">
-        <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-cyan-200">Campus Communication</p>
+      <div className="bg-gradient-to-r from-indigo-900 via-blue-800 to-brand-700 rounded-[40px] p-6 sm:p-8 lg:p-10 text-white shadow-premium">
+        <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-brand-200">Campus Communication</p>
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter mt-2">Notice Board</h2>
         <p className="text-slate-200 mt-3 text-sm sm:text-base">Publish announcements with date so students and teachers can stay updated.</p>
       </div>
@@ -263,7 +263,7 @@ export default function NoticeBoard({ onOpenNotice, schoolId }: NoticeBoardProps
       {(error || status) && (
         <div className="space-y-2">
           {error && <p className="text-sm font-semibold text-rose-600 bg-rose-50 rounded-2xl px-4 py-3">{error}</p>}
-          {status && <p className="text-sm font-semibold text-emerald-700 bg-emerald-50 rounded-2xl px-4 py-3">{status}</p>}
+          {status && <p className="text-sm font-semibold text-brand-700 bg-brand-50 rounded-2xl px-4 py-3">{status}</p>}
         </div>
       )}
 

@@ -162,10 +162,10 @@ export default function ClassAnnouncements({ schoolId }: { schoolId: string | un
 
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-700">
-      <div className="bg-gradient-to-r from-indigo-900 via-blue-800 to-cyan-700 rounded-[40px] p-6 sm:p-8 lg:p-10 text-white shadow-premium relative overflow-hidden group">
+      <div className="bg-gradient-to-r from-indigo-900 via-blue-800 to-brand-700 rounded-[40px] p-6 sm:p-8 lg:p-10 text-white shadow-premium relative overflow-hidden group">
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-all duration-700"></div>
         <div className="relative z-10">
-          <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-cyan-200">Targeted Notification</p>
+          <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-brand-200">Targeted Notification</p>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter mt-2">Class Announcements</h2>
           <p className="text-slate-200 mt-3 text-sm sm:text-base max-w-2xl">Publish and manage notices specifically targeted at certain classes or courses. Reach your students with precision.</p>
         </div>
@@ -177,7 +177,7 @@ export default function ClassAnnouncements({ schoolId }: { schoolId: string | un
           { label: 'Total Internal', value: stats.total, icon: 'fa-bullhorn', color: 'bg-brand-500' },
           { label: 'Urgent Alert', value: stats.urgent, icon: 'fa-bolt', color: 'bg-rose-500' },
           { label: 'High Priority', value: stats.high, icon: 'fa-triangle-exclamation', color: 'bg-amber-500' },
-          { label: 'Targeted Scopes', value: stats.targeted, icon: 'fa-crosshairs', color: 'bg-sky-500' },
+          { label: 'Targeted Scopes', value: stats.targeted, icon: 'fa-crosshairs', color: 'bg-brand-500' },
         ].map((s, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 rounded-[32px] shadow-sm flex items-center gap-4 group hover:border-brand-500/30 transition-all">
             <div className={`w-12 h-12 rounded-2xl ${s.color} text-white flex items-center justify-center text-lg shadow-lg shadow-${s.color.split('-')[1]}-500/20 group-hover:scale-110 transition-transform`}>
@@ -194,7 +194,7 @@ export default function ClassAnnouncements({ schoolId }: { schoolId: string | un
       {(error || status) && (
         <div className="space-y-2">
           {error && <div className="text-sm font-semibold text-rose-600 bg-rose-50 border border-rose-100 rounded-2xl px-4 py-3 flex items-center gap-3"><i className="fas fa-circle-exclamation"></i>{error}</div>}
-          {status && <div className="text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-3 flex items-center gap-3"><i className="fas fa-check-circle"></i>{status}</div>}
+          {status && <div className="text-sm font-semibold text-brand-700 bg-brand-50 border border-brand-100 rounded-2xl px-4 py-3 flex items-center gap-3"><i className="fas fa-check-circle"></i>{status}</div>}
         </div>
       )}
 
@@ -347,7 +347,7 @@ export default function ClassAnnouncements({ schoolId }: { schoolId: string | un
                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
                            ann.priority === 'urgent' ? 'bg-rose-100 text-rose-600' :
                            ann.priority === 'high' ? 'bg-amber-100 text-amber-600' :
-                           ann.priority === 'medium' ? 'bg-sky-100 text-sky-600' : 'bg-slate-100 text-slate-600'
+                           ann.priority === 'medium' ? 'bg-brand-100 text-brand-600' : 'bg-slate-100 text-slate-600'
                          }`}>{ann.priority}</span>
                          {(ann.class_id || ann.class_course_id) && (
                            <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[9px] font-black uppercase tracking-widest"><i className="fas fa-crosshairs mr-1"></i>Targeted</span>

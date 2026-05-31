@@ -1134,7 +1134,7 @@ const ClassAndCoursesManager: React.FC<ClassAndCoursesManagerProps> = ({ student
               type="button"
               onClick={() => void markAllPresent()}
               disabled={isAttendanceLoading || isAttendanceSaving || activeAttendanceStudents.length === 0}
-              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest ${isAttendanceLoading || isAttendanceSaving || activeAttendanceStudents.length === 0 ? 'bg-emerald-200 text-emerald-700 cursor-not-allowed' : 'bg-emerald-500 text-white'}`}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest ${isAttendanceLoading || isAttendanceSaving || activeAttendanceStudents.length === 0 ? 'bg-brand-200 text-brand-700 cursor-not-allowed' : 'bg-brand-500 text-white'}`}
             >
               {isAttendanceSaving ? 'Saving...' : 'Mark All Present'}
             </button>

@@ -15,7 +15,7 @@ interface StudentRecord {
 }
 
 const STATUS_CONFIG: Record<AttendanceStatus, { label: string; icon: string; bg: string; text: string; ring: string }> = {
-  P: { label: 'Present', icon: 'fa-circle-check', bg: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-500' },
+  P: { label: 'Present', icon: 'fa-circle-check', bg: 'bg-brand-500', text: 'text-brand-600 dark:text-brand-400', ring: 'ring-brand-500' },
   A: { label: 'Absent',  icon: 'fa-circle-xmark', bg: 'bg-rose-500',    text: 'text-rose-600 dark:text-rose-400',       ring: 'ring-rose-500' },
   L: { label: 'Late',    icon: 'fa-clock',         bg: 'bg-amber-500',   text: 'text-amber-600 dark:text-amber-400',     ring: 'ring-amber-500' },
 };
@@ -316,7 +316,7 @@ const AttendanceTaker: React.FC<AttendanceTakerProps> = ({ schoolId }) => {
       {students.length > 0 && (
         <div className="grid grid-cols-4 gap-3">
           {[
-            { key: 'present', label: 'Present', value: stats.present, color: 'text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400', icon: 'fa-circle-check' },
+            { key: 'present', label: 'Present', value: stats.present, color: 'text-brand-600 bg-brand-50 border-brand-200 dark:bg-brand-500/10 dark:border-brand-500/20 dark:text-brand-400', icon: 'fa-circle-check' },
             { key: 'absent',  label: 'Absent',  value: stats.absent,  color: 'text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-400',             icon: 'fa-circle-xmark' },
             { key: 'late',    label: 'Late',    value: stats.late,    color: 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400',          icon: 'fa-clock' },
             { key: 'unmarked',label: 'Unmarked',value: stats.unmarked, color: 'text-slate-500 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700',                                    icon: 'fa-circle-question' },
@@ -346,7 +346,7 @@ const AttendanceTaker: React.FC<AttendanceTakerProps> = ({ schoolId }) => {
           {students.length > 0 && (
             <div className="flex flex-wrap gap-2">
               <button onClick={() => markAll('P')}
-                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm shadow-emerald-500/20">
+                className="flex items-center gap-1.5 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm shadow-brand-500/20">
                 <i className="fas fa-check-double"></i> Mark All Present
               </button>
               <button onClick={unmarkAll}
