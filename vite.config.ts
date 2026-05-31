@@ -70,11 +70,8 @@ export default defineConfig({
                 canPublish: true,
               };
 
-              if (isTeacher) {
-                grants.canPublishSources = [TrackSource.CAMERA, TrackSource.MICROPHONE, TrackSource.SCREEN_SHARE];
-              } else {
-                grants.canPublishSources = [TrackSource.CAMERA, TrackSource.MICROPHONE];
-              }
+              // Allow all users to screen share
+              grants.canPublishSources = [TrackSource.CAMERA, TrackSource.MICROPHONE, TrackSource.SCREEN_SHARE];
 
               at.addGrant(grants);
               

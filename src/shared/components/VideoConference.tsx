@@ -439,9 +439,16 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
   const toggleScreenShare = async () => {
     if (activeRoomObj) {
-      const enabled = activeRoomObj.localParticipant.isScreenShareEnabled;
-      await activeRoomObj.localParticipant.setScreenShareEnabled(!enabled);
-      setIsSharingScreen(!enabled);
+      try {
+        const enabled = activeRoomObj.localParticipant.isScreenShareEnabled;
+        await activeRoomObj.localParticipant.setScreenShareEnabled(!enabled);
+        setIsSharingScreen(!enabled);
+      } catch (error: any) {
+        console.error("Error toggling screen share:", error);
+        setError(`Failed to ${isSharingScreen ? 'stop' : 'start'} screen sharing: ${error.message || 'Unknown error'}`);
+        // Reset the state if screen sharing fails
+        setIsSharingScreen(false);
+      }
     }
   };
 
@@ -534,10 +541,10 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
                 <button
                   onClick={() => handleJoinRoom(course)}
-                  className="w-full py-4 bg-[#4ea59d] text-slate-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.03] transition-all shadow-lg shadow-[#4ea59d]/20 flex items-center justify-center gap-2 group-hover:bg-[#3d8c85]"
+                  className={`w-full py-4 text-slate-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.03] transition-all shadow-lg flex items-center justify-center gap-2 ${isTeacher ? 'bg-amber-400 hover:bg-amber-500 shadow-amber-400/20' : 'bg-[#4ea59d] hover:bg-[#3d8c85] shadow-[#4ea59d]/20'}`}
                 >
-                  <i className="fa-solid fa-video"></i>
-                  Join Meeting
+                  <i className={`fa-solid ${isTeacher ? 'fa-play' : 'fa-video'}`}></i>
+                  {isTeacher ? 'Start Meeting' : 'Join Meeting'}
                 </button>
               </div>
             ))
@@ -702,7 +709,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
             {/* Sub-grid of other participants */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
               {participants
-                .filter(p => p !== activeFocus)
+                .filter(p => p !== activeFocus || !!screenSharer)
                 .map((p) => (
                   <ParticipantMediaTile
                     key={p.identity}
