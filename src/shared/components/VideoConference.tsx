@@ -299,6 +299,29 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
   const [isCamEnabled, setIsCamEnabled] = useState(true);
   const [isSharingScreen, setIsSharingScreen] = useState(false);
 
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [showMicMenu, setShowMicMenu] = useState(false);
+  const [showCamMenu, setShowCamMenu] = useState(false);
+
+  useEffect(() => {
+    const getDevices = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        setAudioDevices(devices.filter(d => d.kind === 'audioinput'));
+        setVideoDevices(devices.filter(d => d.kind === 'videoinput'));
+      } catch (err) {
+        console.error("Error fetching devices", err);
+      }
+    };
+    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+      .then(stream => {
+        stream.getTracks().forEach(t => t.stop());
+        getDevices();
+      })
+      .catch(() => getDevices());
+  }, []);
+
   // Filter courses based on user assignments if applicable
   const displayCourses = loadedCourses.filter(course => {
     if (user.role === 'admin' || user.role === 'owner' || user.role === 'staff') {
@@ -576,29 +599,86 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
               {/* Controls Overlay */}
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/60 backdrop-blur-md px-6 py-4 rounded-3xl border border-white/10 opacity-90 hover:opacity-100 transition-opacity z-20">
-                <button
-                  onClick={toggleMic}
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg transition-all ${
-                    isMicEnabled
-                      ? 'bg-white/10 text-white hover:bg-white/20'
-                      : 'bg-red-500 text-white hover:bg-red-600'
-                  }`}
-                  title={isMicEnabled ? "Mute Microphone" : "Unmute Microphone"}
-                >
-                  <i className={`fa-solid ${isMicEnabled ? 'fa-microphone' : 'fa-microphone-slash'}`}></i>
-                </button>
+                
+                {/* Microphone Control */}
+                <div className="relative group">
+                  <div className="flex">
+                    <button
+                      onClick={toggleMic}
+                      className={`w-12 h-12 rounded-l-2xl flex items-center justify-center text-lg transition-all ${
+                        isMicEnabled
+                          ? 'bg-white/10 text-white hover:bg-white/20'
+                          : 'bg-red-500 text-white hover:bg-red-600'
+                      }`}
+                      title={isMicEnabled ? "Mute Microphone" : "Unmute Microphone"}
+                    >
+                      <i className={`fa-solid ${isMicEnabled ? 'fa-microphone' : 'fa-microphone-slash'}`}></i>
+                    </button>
+                    <button
+                      onClick={() => { setShowMicMenu(!showMicMenu); setShowCamMenu(false); }}
+                      className={`w-6 h-12 rounded-r-2xl border-l border-white/10 flex items-center justify-center text-[10px] text-white hover:bg-white/20 transition-all ${isMicEnabled ? 'bg-white/10' : 'bg-red-500 hover:bg-red-600'}`}
+                    >
+                      <i className="fa-solid fa-chevron-up"></i>
+                    </button>
+                  </div>
+                  {showMicMenu && (
+                    <div className="absolute bottom-full left-0 mb-4 w-56 bg-[#0a1a19] border border-white/20 rounded-xl shadow-xl overflow-hidden z-30 flex flex-col max-h-60 overflow-y-auto custom-scrollbar">
+                      <div className="px-4 py-2 bg-white/5 border-b border-white/10 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        Select Microphone
+                      </div>
+                      {audioDevices.length > 0 ? audioDevices.map(d => (
+                        <button key={d.deviceId} onClick={() => {
+                          if (activeRoomObj) activeRoomObj.switchActiveDevice('audioinput', d.deviceId);
+                          setShowMicMenu(false);
+                        }} className="w-full text-left px-4 py-3 text-xs font-bold text-white hover:bg-[#4ea59d] hover:text-slate-900 truncate transition-colors text-ellipsis overflow-hidden">
+                          {d.label || 'Unknown Microphone'}
+                        </button>
+                      )) : (
+                        <div className="px-4 py-3 text-xs text-slate-400">No microphones found</div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-                <button
-                  onClick={toggleCam}
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg transition-all ${
-                    isCamEnabled
-                      ? 'bg-white/10 text-white hover:bg-white/20'
-                      : 'bg-red-500 text-white hover:bg-red-600'
-                  }`}
-                  title={isCamEnabled ? "Disable Camera" : "Enable Camera"}
-                >
-                  <i className={`fa-solid ${isCamEnabled ? 'fa-video' : 'fa-video-slash'}`}></i>
-                </button>
+                {/* Camera Control */}
+                <div className="relative group">
+                  <div className="flex">
+                    <button
+                      onClick={toggleCam}
+                      className={`w-12 h-12 rounded-l-2xl flex items-center justify-center text-lg transition-all ${
+                        isCamEnabled
+                          ? 'bg-white/10 text-white hover:bg-white/20'
+                          : 'bg-red-500 text-white hover:bg-red-600'
+                      }`}
+                      title={isCamEnabled ? "Disable Camera" : "Enable Camera"}
+                    >
+                      <i className={`fa-solid ${isCamEnabled ? 'fa-video' : 'fa-video-slash'}`}></i>
+                    </button>
+                    <button
+                      onClick={() => { setShowCamMenu(!showCamMenu); setShowMicMenu(false); }}
+                      className={`w-6 h-12 rounded-r-2xl border-l border-white/10 flex items-center justify-center text-[10px] text-white hover:bg-white/20 transition-all ${isCamEnabled ? 'bg-white/10' : 'bg-red-500 hover:bg-red-600'}`}
+                    >
+                      <i className="fa-solid fa-chevron-up"></i>
+                    </button>
+                  </div>
+                  {showCamMenu && (
+                    <div className="absolute bottom-full left-0 mb-4 w-56 bg-[#0a1a19] border border-white/20 rounded-xl shadow-xl overflow-hidden z-30 flex flex-col max-h-60 overflow-y-auto custom-scrollbar">
+                      <div className="px-4 py-2 bg-white/5 border-b border-white/10 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        Select Camera
+                      </div>
+                      {videoDevices.length > 0 ? videoDevices.map(d => (
+                        <button key={d.deviceId} onClick={() => {
+                          if (activeRoomObj) activeRoomObj.switchActiveDevice('videoinput', d.deviceId);
+                          setShowCamMenu(false);
+                        }} className="w-full text-left px-4 py-3 text-xs font-bold text-white hover:bg-[#4ea59d] hover:text-slate-900 truncate transition-colors text-ellipsis overflow-hidden">
+                          {d.label || 'Unknown Camera'}
+                        </button>
+                      )) : (
+                        <div className="px-4 py-3 text-xs text-slate-400">No cameras found</div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <button
                   onClick={toggleScreenShare}
