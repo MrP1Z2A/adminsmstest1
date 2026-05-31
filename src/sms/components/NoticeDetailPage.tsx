@@ -17,7 +17,7 @@ const NOTICE_FILES_BUCKET = 'notice_files';
 
 const priorityBadgeClassMap: Record<NoticeItem['priority'], string> = {
   low: 'bg-slate-100 text-slate-700',
-  medium: 'bg-sky-100 text-sky-700',
+  medium: 'bg-brand-100 text-brand-700',
   high: 'bg-amber-100 text-amber-700',
   urgent: 'bg-rose-100 text-rose-700',
 };
@@ -191,7 +191,7 @@ export default function NoticeDetailPage({ noticeId, onBack }: NoticeDetailPageP
       {(error || status) && (
         <div className="space-y-2">
           {error && <p className="text-sm font-semibold text-rose-600 bg-rose-50 rounded-2xl px-4 py-3">{error}</p>}
-          {status && <p className="text-sm font-semibold text-emerald-700 bg-emerald-50 rounded-2xl px-4 py-3">{status}</p>}
+          {status && <p className="text-sm font-semibold text-brand-700 bg-brand-50 rounded-2xl px-4 py-3">{status}</p>}
         </div>
       )}
 

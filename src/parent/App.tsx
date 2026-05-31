@@ -59,7 +59,7 @@ const Sidebar = ({
       {/* Sidebar panel */}
       <aside
         className={`
-          fixed md:relative inset-y-0 left-0 z-[100] md:z-0 flex flex-col bg-slate-900 text-white border-r border-slate-800
+          fixed md:relative inset-y-0 left-0 z-[100] md:z-0 flex flex-col bg-[#0f2624] text-white border-r border-[#1f4e4a]
           transition-all duration-300 ease-in-out overflow-hidden h-screen
           ${isOpen ? 'w-72 translate-x-0' : 'w-0 -translate-x-full md:translate-x-0'}
         `}
@@ -95,7 +95,7 @@ const Sidebar = ({
                   transition-all duration-200 text-sm font-bold whitespace-nowrap
                   ${active
                     ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-600/20'
-                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'}
+                    : 'text-slate-300 hover:bg-[#1f4e4a] hover:text-white'}
                 `}
               >
                 <div className="flex items-center space-x-3">
@@ -147,7 +147,7 @@ const Header = ({
       <button
         onClick={onMenuClick}
         title={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
-        className="p-2.5 bg-slate-50 hover:bg-emerald-50 rounded-xl text-slate-500 hover:text-emerald-600 border border-slate-100 hover:border-emerald-100 active:scale-95 transition-all shadow-sm"
+        className="p-2.5 bg-slate-50 hover:bg-brand-50 rounded-xl text-slate-500 hover:text-brand-600 border border-slate-100 hover:border-brand-100 active:scale-95 transition-all shadow-sm"
       >
         {sidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
@@ -164,7 +164,7 @@ const Header = ({
 
       <div>
         <h2 className="text-base font-black text-slate-800 tracking-tight">Academic Portal</h2>
-        <p className="text-[10px] text-emerald-600 font-black uppercase tracking-[0.2em] hidden sm:block">Parental Monitoring Gateway</p>
+        <p className="text-[10px] text-brand-600 font-black uppercase tracking-[0.2em] hidden sm:block">Parental Monitoring Gateway</p>
       </div>
     </div>
 
@@ -179,9 +179,9 @@ const Header = ({
       <div className="flex items-center gap-3 border-l border-slate-100 pl-4">
         <div className="hidden md:block text-right">
           <p className="text-sm font-black text-slate-800">{parentData?.email?.split('@')[0] || 'Parent'}</p>
-          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Active Session</p>
+          <p className="text-[10px] font-black text-brand-600 uppercase tracking-widest">Active Session</p>
         </div>
-        <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-black text-base border-2 border-white shadow-md">
+        <div className="w-10 h-10 rounded-2xl bg-brand-100 flex items-center justify-center text-brand-700 font-black text-base border-2 border-white shadow-md">
           {parentData?.email?.[0]?.toUpperCase() || 'P'}
         </div>
       </div>
@@ -252,7 +252,7 @@ const ParentApp: React.FC<ParentAppProps> = ({ onSwitch }) => {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-[#f3f0e8]">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}

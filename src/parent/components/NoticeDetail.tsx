@@ -18,7 +18,7 @@ const NoticeDetail: React.FC<NoticeDetailProps> = ({ notice, onBack }) => {
       <div className="flex items-center justify-between">
         <button
           onClick={onBack}
-          className="group flex items-center gap-2 text-slate-500 hover:text-emerald-600 font-bold transition-all active:scale-95"
+          className="group flex items-center gap-2 text-slate-500 hover:text-brand-600 font-bold transition-all active:scale-95"
         >
           <div className="p-2 bg-white rounded-xl border border-slate-100 group-hover:border-emerald-100 group-hover:bg-emerald-50 transition-all">
             <ArrowLeft className="w-5 h-5" />
@@ -57,7 +57,7 @@ const NoticeDetail: React.FC<NoticeDetailProps> = ({ notice, onBack }) => {
               {notice.title}
             </h2>
             <div className="flex items-center gap-3 shrink-0">
-              <div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600 border border-emerald-100">
+              <div className="p-3 bg-brand-50 rounded-2xl text-brand-600 border border-brand-100">
                 <Calendar className="w-5 h-5" />
               </div>
               <div>
@@ -76,12 +76,12 @@ const NoticeDetail: React.FC<NoticeDetailProps> = ({ notice, onBack }) => {
           {/* Verification Badge */}
           <div className="pt-10 border-t border-slate-50 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 border-2 border-white shadow-sm">
+              <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 border-2 border-white shadow-sm">
                 <span className="font-black text-xs">A</span>
               </div>
               <div>
                 <p className="text-xs font-black text-slate-900 leading-none">Administration Office</p>
-                <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Verified Bulletin</p>
+                <p className="text-[10px] text-brand-600 font-bold uppercase tracking-widest mt-1">Verified Bulletin</p>
               </div>
             </div>
             <div className="bg-slate-50 px-5 py-2.5 rounded-xl border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">

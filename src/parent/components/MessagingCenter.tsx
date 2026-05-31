@@ -91,7 +91,7 @@ const formatTime = (iso?: string) => {
 const roleMeta: Record<ContactRole, { label: string; badge: string }> = {
   admin: {
     label: 'Administration',
-    badge: 'bg-emerald-100 text-emerald-700',
+    badge: 'bg-brand-100 text-brand-700',
   },
   teacher: {
     label: 'Teachers',
@@ -706,7 +706,7 @@ const ParentMessagingCenter: React.FC<ParentMessagingCenterProps> = ({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-emerald-600" />
+                  <MessageSquare className="w-5 h-5 text-brand-600" />
                   Inbox
                 </h3>
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">Direct and Group Channels</p>
@@ -765,7 +765,7 @@ const ParentMessagingCenter: React.FC<ParentMessagingCenterProps> = ({
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex items-start gap-3">
-                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${isActive ? 'bg-white/15 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
+                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${isActive ? 'bg-white/15 text-white' : 'bg-brand-100 text-brand-700'}`}>
                                 <Users className="w-5 h-5" />
                               </div>
                               <div className="min-w-0">
@@ -870,7 +870,7 @@ const ParentMessagingCenter: React.FC<ParentMessagingCenterProps> = ({
               <div className="p-5 border-b border-slate-200 bg-white flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 min-w-0">
                   {activeChat.kind === 'group' ? (
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-brand-100 text-brand-700 flex items-center justify-center shrink-0">
                       <Users className="w-5 h-5" />
                     </div>
                   ) : (
@@ -901,7 +901,7 @@ const ParentMessagingCenter: React.FC<ParentMessagingCenterProps> = ({
                   {activeChat.kind === 'group' && activeChat.group.created_by === parentId && (
                     <button
                       onClick={() => setIsAddMemberOpen(true)}
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all text-[10px] font-black uppercase tracking-widest"
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100 transition-all text-[10px] font-black uppercase tracking-widest"
                     >
                       <UserPlus className="w-4 h-4" />
                       Add Member
@@ -925,13 +925,13 @@ const ParentMessagingCenter: React.FC<ParentMessagingCenterProps> = ({
 
               <div className="flex-1 overflow-y-auto p-6 bg-[linear-gradient(180deg,rgba(240,253,250,0.75),rgba(255,255,255,0.98))]">
                 {isLoadingMessages ? (
-                  <div className="h-full flex flex-col items-center justify-center gap-3 text-emerald-600">
+                  <div className="h-full flex flex-col items-center justify-center gap-3 text-brand-600">
                     <Loader2 className="w-8 h-8 animate-spin" />
                     <p className="text-[10px] font-black uppercase tracking-widest">Loading thread...</p>
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
-                    <div className="w-24 h-24 rounded-[2rem] bg-emerald-100 text-emerald-700 flex items-center justify-center mb-5">
+                    <div className="w-24 h-24 rounded-[2rem] bg-brand-100 text-brand-700 flex items-center justify-center mb-5">
                       <MessageSquare className="w-10 h-10" />
                     </div>
                     <h4 className="text-xl font-black text-slate-900">Start the conversation</h4>
@@ -1046,7 +1046,7 @@ const ParentMessagingCenter: React.FC<ParentMessagingCenterProps> = ({
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
-              <div className="w-28 h-28 rounded-[2rem] bg-emerald-100 text-emerald-700 flex items-center justify-center mb-6 shadow-inner">
+              <div className="w-28 h-28 rounded-[2rem] bg-brand-100 text-brand-700 flex items-center justify-center mb-6 shadow-inner">
                 <Headset className="w-12 h-12" />
               </div>
               <h3 className="text-2xl font-black text-slate-900">Select a school conversation</h3>

@@ -58,13 +58,13 @@ const Sidebar: React.FC<SidebarProps> = ({
             else if (id) { setCurrentPage(id); setIsMobileMenuOpen(false); }
           }}
           className={`w-full flex items-center justify-between ${isCollapsed ? 'px-0' : 'px-8'} py-3.5 transition-all duration-300 group
-            ${(isActive || (hasDropdown && isParentActive && !isOpen)) ? 'bg-brand-500/10 text-white border-r-4 border-brand-500' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+            ${(isActive || (hasDropdown && isParentActive && !isOpen)) ? 'bg-[#4ea59d] text-white shadow-[0_8px_16px_-4px_rgba(78,165,157,0.5)] border-r-4 border-[#4ea59d]' : 'text-slate-300 hover:text-[#4ea59d] hover:bg-[#1f4e4a]'}`}
         >
           <div className={`flex items-center ${isCollapsed ? 'justify-center w-full' : 'gap-4'}`}>
-            {icon && <i className={`fas ${icon} w-5 text-sm transition-colors ${isActive || isParentActive ? 'text-brand-400' : 'opacity-60 group-hover:opacity-100'}`}></i>}
+            {icon && <i className={`fas ${icon} w-5 text-sm transition-colors ${isActive || isParentActive ? 'text-white' : 'text-slate-400 group-hover:text-[#4ea59d]'}`}></i>}
             {!isCollapsed && <span className="text-[13px] font-bold tracking-tight">{label}</span>}
           </div>
-          {!isCollapsed && hasDropdown && <i className={`fas fa-chevron-down text-[10px] transition-transform duration-300 ${isOpen ? 'rotate-180 text-brand-400' : 'opacity-40 group-hover:opacity-100'}`}></i>}
+          {!isCollapsed && hasDropdown && <i className={`fas fa-chevron-down text-[10px] transition-transform duration-300 ${isOpen ? 'rotate-180 text-[#4ea59d]' : 'opacity-40 group-hover:opacity-100'}`}></i>}
         </button>
         {hasDropdown && isOpen && !isCollapsed && <div className="bg-black/10 py-1 animate-in slide-in-from-top-2 duration-300">{children}</div>}
       </div>
@@ -87,7 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside className={`fixed lg:sticky lg:top-0 lg:h-screen bg-[#0f172a] text-white z-50 lg:z-0 flex flex-col transition-all duration-300 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl w-64' : '-translate-x-full lg:translate-x-0'} ${isCollapsed ? 'lg:w-20' : 'lg:w-64'} ${!isMobileMenuOpen ? 'lg:w-0' : ''}`}>
+    <aside className={`fixed lg:sticky lg:top-0 lg:h-screen bg-[#0f2624] border-r border-[#1f4e4a] text-white z-50 lg:z-0 flex flex-col transition-all duration-300 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl w-64' : '-translate-x-full lg:translate-x-0'} ${isCollapsed ? 'lg:w-20' : 'lg:w-64'} ${!isMobileMenuOpen ? 'lg:w-0' : ''}`}>
       <div className={`p-8 pb-10 flex items-center shrink-0 ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
         <div className="w-10 h-10 bg-brand-500 rounded-2xl flex items-center justify-center shadow-lg shadow-brand-500/30 overflow-hidden shrink-0">
           <img src={activeLogoUrl} alt={schoolName || 'School'} className="w-full h-full object-cover" />
@@ -113,20 +113,19 @@ const Sidebar: React.FC<SidebarProps> = ({
       >
         <SidebarMenuItem id="dashboard" icon="fa-house" label="Dashboard" activePage={currentPage} />
         <SidebarMenuItem id="live-calendar" icon="fa-calendar-days" label="Live Calendar" activePage={currentPage} />
+
+        {/* Academic Section */}
+        <div className="px-8 mt-3 mb-1 text-[11px] text-slate-400 font-black uppercase tracking-wider">Academic</div>
         <SidebarMenuItem icon="fa-user-group" label="Students / Parents" activePage={currentPage} hasDropdown>
           <SidebarSubItem id="students" label="Student Directory" activePage={currentPage} />
           <SidebarSubItem id="parents" label="Parent Directory" activePage={currentPage} />
-          <SidebarSubItem id="student-achievements" label="Student Achievement" activePage={currentPage} />
-          <SidebarSubItem id="student-register" label="Registration Hub" activePage={currentPage} />
+          <SidebarSubItem id="student-achievements" label="Achievements" activePage={currentPage} />
+          <SidebarSubItem id="student-register" label="Registration" activePage={currentPage} />
         </SidebarMenuItem>
         <SidebarMenuItem icon="fa-chalkboard-teacher" label="Teachers" activePage={currentPage} hasDropdown>
           <SidebarSubItem id="teachers" label="Teacher Directory" activePage={currentPage} />
-          <SidebarSubItem id="teacher-register" label="Registration Hub" activePage={currentPage} />
+          <SidebarSubItem id="teacher-register" label="Registration" activePage={currentPage} />
           <SidebarSubItem id="teacher-attendance" label="Staff Attendance" activePage={currentPage} />
-        </SidebarMenuItem>
-        <SidebarMenuItem icon="fa-user-tie" label="Student Service" activePage={currentPage} hasDropdown>
-          <SidebarSubItem id="student-service" label="SS Directory" activePage={currentPage} />
-          <SidebarSubItem id="student-service-batch" label="Batch Registering" activePage={currentPage} />
         </SidebarMenuItem>
         <SidebarMenuItem icon="fa-calendar-check" label="Class Management" activePage={currentPage} hasDropdown>
           <SidebarSubItem id="student-attendance" label="Classes" activePage={currentPage} />
@@ -134,27 +133,40 @@ const Sidebar: React.FC<SidebarProps> = ({
           <SidebarSubItem id="class-group-management" label="Group Management" activePage={currentPage} />
         </SidebarMenuItem>
         <SidebarMenuItem id="homework" icon="fa-book-open" label="Homework" activePage={currentPage} />
+        <SidebarMenuItem id="exam" icon="fa-clipboard-check" label="Exam Management" activePage={currentPage} />
         <SidebarMenuItem id="report-card" icon="fa-file-lines" label="Report Card" activePage={currentPage} />
-        <SidebarMenuItem icon="fa-bullhorn" label="Announcement" activePage={currentPage} hasDropdown>
+
+        {/* Finance Section */}
+        <div className="px-8 mt-4 mb-1 text-[11px] text-slate-400 font-black uppercase tracking-wider">Finance</div>
+        <SidebarMenuItem icon="fa-money-bill-wave" label="Payments" activePage={currentPage} hasDropdown>
+          <SidebarSubItem id="payment" label="Make Payment" activePage={currentPage} />
+          <SidebarSubItem id="payment-assign" label="Assign Payment" activePage={currentPage} />
+          <SidebarSubItem id="payment-history" label="Payment History" activePage={currentPage} />
+          <SidebarSubItem id="student-finance-status" label="Student Finance" activePage={currentPage} />
+          <SidebarSubItem id="cash-records" label="Cash Records" activePage={currentPage} />
+        </SidebarMenuItem>
+
+        {/* Communications */}
+        <div className="px-8 mt-4 mb-1 text-[11px] text-slate-400 font-black uppercase tracking-wider">Communications</div>
+        <SidebarMenuItem icon="fa-bullhorn" label="Announcements" activePage={currentPage} hasDropdown>
           <SidebarSubItem id="notice" label="Notice Board" activePage={currentPage} />
           <SidebarSubItem id="events" label="Events" activePage={currentPage} />
-          <SidebarSubItem id="student-activities" label="Student Activities" activePage={currentPage} />
-          <SidebarSubItem id="announcements-parent" label="For Parent" activePage={currentPage} />
+          <SidebarSubItem id="student-activities" label="Activities" activePage={currentPage} />
+          <SidebarSubItem id="announcements-parent" label="For Parents" activePage={currentPage} />
           <SidebarSubItem id="class-announcements" label="Class Announcements" activePage={currentPage} />
           <SidebarSubItem id="live-intel" label="Live Intel" activePage={currentPage} />
         </SidebarMenuItem>
-        <SidebarMenuItem icon="fa-money-bill-wave" label="Payment" activePage={currentPage} hasDropdown>
-          <SidebarSubItem id="payment" label="Payment" activePage={currentPage} />
-          <SidebarSubItem id="payment-assign" label="Assign Payment" activePage={currentPage} />
-          <SidebarSubItem id="payment-history" label="Payment History" activePage={currentPage} />
-          <SidebarSubItem id="student-finance-status" label="Student Finance Status" activePage={currentPage} />
-          <SidebarSubItem id="cash-records" label="Cash Records" activePage={currentPage} />
-        </SidebarMenuItem>
-        <SidebarMenuItem id="exam" icon="fa-clipboard-check" label="Exam Management" activePage={currentPage} />
-        <SidebarMenuItem id="about-school" icon="fa-circle-info" label="About School" activePage={currentPage} />
-        <SidebarMenuItem id="security" icon="fa-user-shield" label="Security Permission" activePage={currentPage} />
         <SidebarMenuItem id="messages" icon="fa-comments" label="Messages" activePage={currentPage} />
         <SidebarMenuItem id="video-conference" icon="fa-video" label="Video Conference" activePage={currentPage} />
+
+        {/* Administration / Utilities */}
+        <div className="px-8 mt-4 mb-1 text-[11px] text-slate-400 font-black uppercase tracking-wider">Administration</div>
+        <SidebarMenuItem icon="fa-user-tie" label="Student Service" activePage={currentPage} hasDropdown>
+          <SidebarSubItem id="student-service" label="SS Directory" activePage={currentPage} />
+          <SidebarSubItem id="student-service-batch" label="Batch Register" activePage={currentPage} />
+        </SidebarMenuItem>
+        <SidebarMenuItem id="about-school" icon="fa-circle-info" label="About School" activePage={currentPage} />
+        <SidebarMenuItem id="security" icon="fa-user-shield" label="Security / Permissions" activePage={currentPage} />
 
 
         <div className="mt-auto px-8 mb-8 space-y-4">

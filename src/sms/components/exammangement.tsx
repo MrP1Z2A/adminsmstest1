@@ -870,7 +870,7 @@ export default function ExamManagementPage({ schoolId }: { schoolId: string | un
       {(error || status) && (
         <div className="space-y-2">
           {error && <p className="text-sm font-semibold text-rose-600 bg-rose-50 rounded-2xl px-4 py-3">{error}</p>}
-          {status && <p className="text-sm font-semibold text-emerald-700 bg-emerald-50 rounded-2xl px-4 py-3">{status}</p>}
+          {status && <p className="text-sm font-semibold text-brand-700 bg-brand-50 rounded-2xl px-4 py-3">{status}</p>}
         </div>
       )}
 
@@ -948,7 +948,7 @@ export default function ExamManagementPage({ schoolId }: { schoolId: string | un
                   <>
                     <button
                       onClick={() => openGradingPage(exam)}
-                      className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-black uppercase tracking-widest"
+                      className="px-3 py-2 rounded-xl bg-brand-50 text-brand-700 text-xs font-black uppercase tracking-widest"
                     >
                       Grade
                     </button>
@@ -967,7 +967,7 @@ export default function ExamManagementPage({ schoolId }: { schoolId: string | un
                     </button>
                   </>
                 ) : (
-                  <button className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-black uppercase tracking-widest">
+                  <button className="px-3 py-2 rounded-xl bg-brand-50 text-brand-700 text-xs font-black uppercase tracking-widest">
                     Start Exam
                   </button>
                 )}
@@ -1058,7 +1058,7 @@ export default function ExamManagementPage({ schoolId }: { schoolId: string | un
                   />
 
                   {selectedPdfFile && (
-                    <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2">
                       <p className="text-xs font-black text-emerald-700 truncate">Selected: {selectedPdfFile.name}</p>
                       <button
                         type="button"

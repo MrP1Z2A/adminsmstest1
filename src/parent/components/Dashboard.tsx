@@ -22,7 +22,7 @@ const StatCard = ({ label, value, sub, subColor = 'text-emerald-500', icon: Icon
   <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
     <div className="flex items-start justify-between mb-3">
       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{label}</p>
-      {Icon && <div className="p-2 bg-slate-50 rounded-xl text-slate-400 group-hover:text-emerald-600 transition-colors"><Icon className="w-4 h-4" /></div>}
+      {Icon && <div className="p-2 bg-slate-50 rounded-xl text-slate-400 group-hover:text-brand-600 transition-colors"><Icon className="w-4 h-4" /></div>}
     </div>
     <p className="text-3xl font-black text-slate-900 tracking-tight">{value}</p>
     {sub && <p className={`text-[10px] font-bold mt-2 flex items-center gap-1 ${subColor}`}>{sub}</p>}
@@ -105,7 +105,7 @@ const Dashboard: React.FC<DashboardProps> = ({ parentEmail, studentNames, studen
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const COLORS = ['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0'];
+const COLORS = ['#4ea59d', '#3f857e', '#366c67', '#2f5854', '#134e4a'];
 
   // Derive chart data from exam results (per subject averages)
   const chartData: { subject: string; score: number }[] = [];
@@ -136,7 +136,7 @@ const Dashboard: React.FC<DashboardProps> = ({ parentEmail, studentNames, studen
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Parental Dashboard</h1>
           <div className="flex items-center gap-3 text-slate-500 text-sm mt-1 flex-wrap">
-            <p>Monitoring <span className="font-black text-emerald-600">{studentName}</span></p>
+            <p>Monitoring <span className="font-black text-brand-600">{studentName}</span></p>
             {data && (
               <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-0.5 rounded-full text-[10px] font-black border border-emerald-100">
                 <span className={`w-1.5 h-1.5 bg-emerald-500 rounded-full ${syncing ? 'animate-pulse' : ''}`} />
@@ -147,9 +147,9 @@ const Dashboard: React.FC<DashboardProps> = ({ parentEmail, studentNames, studen
         </div>
         <button
           onClick={fetchData} disabled={syncing}
-          className="bg-white border border-slate-100 px-4 py-2.5 rounded-xl text-slate-600 hover:text-emerald-600 hover:border-emerald-100 transition-all shadow-sm flex items-center gap-2 text-sm font-bold active:scale-95 disabled:opacity-50 self-start"
+          className="bg-white border border-slate-100 px-4 py-2.5 rounded-xl text-slate-600 hover:text-brand-600 hover:border-brand-100 transition-all shadow-sm flex items-center gap-2 text-sm font-bold active:scale-95 disabled:opacity-50 self-start"
         >
-          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin text-emerald-600' : ''}`} />
+          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin text-brand-600' : ''}`} />
           {syncing ? 'Syncing…' : 'Refresh'}
         </button>
       </div>
@@ -167,7 +167,7 @@ const Dashboard: React.FC<DashboardProps> = ({ parentEmail, studentNames, studen
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-black text-slate-900 flex items-center gap-2 uppercase tracking-tight">
-              <TrendingUp className="w-5 h-5 text-emerald-600" /> Academic Performance
+              <TrendingUp className="w-5 h-5 text-brand-600" /> Academic Performance
             </h3>
             <span className="text-[10px] font-black bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg border border-emerald-100 uppercase tracking-widest">
               Live Exam Data
@@ -212,12 +212,12 @@ const Dashboard: React.FC<DashboardProps> = ({ parentEmail, studentNames, studen
               <h3 className="font-black text-lg uppercase tracking-tighter flex items-center gap-2">
                 <Users className="w-5 h-5" /> Attendance
               </h3>
-              <p className="text-emerald-300 text-[10px] font-bold uppercase tracking-widest mt-1">Current Period</p>
+              <p className="text-brand-300 text-[10px] font-bold uppercase tracking-widest mt-1">Current Period</p>
             </div>
             <div className="text-5xl font-black tracking-tighter">{attendanceRate}</div>
             <div className="space-y-3">
               {[
-                { label: 'Present', value: data?.attendance?.present ?? 0, color: 'bg-emerald-400' },
+                { label: 'Present', value: data?.attendance?.present ?? 0, color: 'bg-brand-400' },
                 { label: 'Absent', value: data?.attendance?.absent ?? 0, color: 'bg-rose-400' },
                 { label: 'Late', value: data?.attendance?.late ?? 0, color: 'bg-amber-400' },
               ].map(item => (
@@ -231,7 +231,7 @@ const Dashboard: React.FC<DashboardProps> = ({ parentEmail, studentNames, studen
               ))}
             </div>
             <div className="pt-4 border-t border-white/10">
-              <p className="text-[10px] font-black text-emerald-100/40 uppercase tracking-widest">
+              <p className="text-[10px] font-black text-brand-100/40 uppercase tracking-widest">
                 Total: {data?.attendance?.total ?? 0} school days
               </p>
             </div>
@@ -243,7 +243,7 @@ const Dashboard: React.FC<DashboardProps> = ({ parentEmail, studentNames, studen
         {/* Notices / Bulletins */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
           <h3 className="font-black text-slate-900 mb-5 flex items-center gap-2 uppercase tracking-tight">
-            <Calendar className="w-5 h-5 text-emerald-600" /> Institution Bulletins
+            <Calendar className="w-5 h-5 text-brand-600" /> Institution Bulletins
           </h3>
           <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
             {syncing ? (
@@ -313,7 +313,7 @@ const Dashboard: React.FC<DashboardProps> = ({ parentEmail, studentNames, studen
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-black text-slate-900 flex items-center gap-2 uppercase tracking-tight">
-              <CreditCard className="w-5 h-5 text-emerald-600" /> Financial Standing
+              <CreditCard className="w-5 h-5 text-brand-600" /> Financial Standing
             </h3>
             <button
               onClick={downloadPaymentHistory}
@@ -331,7 +331,7 @@ const Dashboard: React.FC<DashboardProps> = ({ parentEmail, studentNames, studen
               data.payments.map(pay => (
                 <div key={pay.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 hover:border-emerald-100 hover:bg-emerald-50/20 transition-colors group">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2.5 rounded-xl ${pay.status.toLowerCase() === 'paid' ? 'bg-emerald-50 text-emerald-600' :
+                    <div className={`p-2.5 rounded-xl ${pay.status.toLowerCase() === 'paid' ? 'bg-brand-50 text-brand-600' :
                         pay.status.toLowerCase() === 'overdue' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'
                       }`}>
                       <CreditCard className="w-4 h-4" />
@@ -344,13 +344,13 @@ const Dashboard: React.FC<DashboardProps> = ({ parentEmail, studentNames, studen
                   <div className="flex items-center gap-4">
                     <div className="text-right shrink-0">
                       <p className="text-base font-black text-slate-900">{Number(pay.amount).toLocaleString()} MMK</p>
-                      <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-widest ${pay.status.toLowerCase() === 'paid' ? 'bg-emerald-100 text-emerald-700' :
+                      <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-widest ${pay.status.toLowerCase() === 'paid' ? 'bg-brand-100 text-brand-700' :
                           pay.status.toLowerCase() === 'overdue' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
                         }`}>{pay.status}</span>
                     </div>
                     <button
                       onClick={() => downloadInvoice(pay)}
-                      className="p-2 text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                      className="p-2 text-slate-300 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                       title="Download Invoice"
                     >
                       <FileDown className="w-5 h-5" />
@@ -372,7 +372,7 @@ const Dashboard: React.FC<DashboardProps> = ({ parentEmail, studentNames, studen
       <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden mt-8">
         <div className="p-7 border-b border-slate-50 flex items-center justify-between">
           <h3 className="font-black text-slate-900 flex items-center gap-3 uppercase tracking-tight">
-            <BookOpen className="w-5 h-5 text-emerald-600" /> Pending Homework
+            <BookOpen className="w-5 h-5 text-brand-600" /> Pending Homework
           </h3>
           <span className="text-[10px] text-amber-600 font-black uppercase tracking-widest bg-amber-50 px-3 py-1 rounded-lg border border-amber-100">
             {data?.homework?.filter(h => h.status?.toLowerCase() === 'pending').length || 0} Tasks

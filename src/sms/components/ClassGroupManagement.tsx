@@ -401,7 +401,7 @@ const ClassGroupManagement: React.FC<ClassGroupManagementProps> = ({ schoolId })
       {/* ── Toast ── */}
       {notification && (
         <div className={`fixed top-6 right-6 z-[999] px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-white font-black text-sm animate-in slide-in-from-top-2 duration-300 ${
-          notification.type === 'error' ? 'bg-rose-500' : notification.type === 'info' ? 'bg-blue-500' : 'bg-emerald-500'
+          notification.type === 'error' ? 'bg-rose-500' : notification.type === 'info' ? 'bg-blue-500' : 'bg-brand-500'
         }`}>
           <i className={`fas ${notification.type === 'error' ? 'fa-circle-xmark' : notification.type === 'info' ? 'fa-circle-info' : 'fa-circle-check'}`}></i>
           {notification.msg}
@@ -432,7 +432,7 @@ const ClassGroupManagement: React.FC<ClassGroupManagementProps> = ({ schoolId })
           { label: 'Classes', value: classes.length, icon: 'fa-layer-group', color: 'text-brand-500 bg-brand-500/10' },
           { label: 'Courses', value: courses.length, icon: 'fa-book-open', color: 'text-indigo-500 bg-indigo-500/10' },
           { label: 'Teachers', value: teachers.length, icon: 'fa-chalkboard-teacher', color: 'text-amber-500 bg-amber-500/10' },
-          { label: 'Students', value: students.length, icon: 'fa-user-graduate', color: 'text-emerald-500 bg-emerald-500/10' },
+          { label: 'Students', value: students.length, icon: 'fa-user-graduate', color: 'text-brand-500 bg-brand-500/10' },
         ].map(s => (
           <div key={s.label} className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${s.color}`}>
@@ -596,7 +596,7 @@ const ClassGroupManagement: React.FC<ClassGroupManagementProps> = ({ schoolId })
                       <i className="fas fa-user-plus text-xs"></i> Teacher
                     </button>
                     <button onClick={() => openAssign('student')}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                      className="flex items-center gap-1.5 px-3 py-2 bg-brand-500/10 border border-brand-500/20 text-brand-600 hover:bg-brand-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
                       <i className="fas fa-user-plus text-xs"></i> Student
                     </button>
                   </div>
@@ -631,7 +631,7 @@ const ClassGroupManagement: React.FC<ClassGroupManagementProps> = ({ schoolId })
                     <div className="grid grid-cols-2 gap-4">
                       {[
                         { label: 'Teachers', count: teachersForCourse.length, icon: 'fa-chalkboard-teacher', color: 'text-amber-500 bg-amber-500/10', tab: 'teachers' as Tab },
-                        { label: 'Students', count: studentsForCourse.length, icon: 'fa-user-graduate', color: 'text-emerald-500 bg-emerald-500/10', tab: 'students' as Tab },
+                        { label: 'Students', count: studentsForCourse.length, icon: 'fa-user-graduate', color: 'text-brand-500 bg-brand-500/10', tab: 'students' as Tab },
                       ].map(card => (
                         <button key={card.label} onClick={() => setActiveTab(card.tab)}
                           className="p-5 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-brand-500/30 hover:shadow-lg transition-all text-left">
@@ -666,9 +666,9 @@ const ClassGroupManagement: React.FC<ClassGroupManagementProps> = ({ schoolId })
                         <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Assigned Students</p>
                         <div className="flex flex-wrap gap-2">
                           {studentsForCourse.slice(0, 8).map(s => (
-                            <div key={s.id} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl border border-emerald-200 dark:border-emerald-500/20">
+                            <div key={s.id} className="flex items-center gap-2 px-3 py-1.5 bg-brand-50 dark:bg-brand-500/10 rounded-xl border border-brand-200 dark:border-brand-500/20">
                               <Avatar name={s.name} src={s.avatar} size={5} />
-                              <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400">{s.name.split(' ')[0]}</span>
+                              <span className="text-[10px] font-black text-brand-700 dark:text-brand-400">{s.name.split(' ')[0]}</span>
                             </div>
                           ))}
                           {studentsForCourse.length > 8 && <span className="text-[10px] font-bold text-slate-400 self-center">+{studentsForCourse.length - 8} more</span>}
@@ -714,7 +714,7 @@ const ClassGroupManagement: React.FC<ClassGroupManagementProps> = ({ schoolId })
                         <Avatar name={s.name} src={s.avatar} size={9} />
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-black text-slate-700 dark:text-white truncate">{s.name}</p>
-                          <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Student</p>
+                          <p className="text-[9px] font-bold text-brand-500 uppercase tracking-widest">Student</p>
                           {s.email && <p className="text-[9px] text-slate-400 truncate">{s.email}</p>}
                         </div>
                         <button onClick={() => removeStudent(String(s.id))}
@@ -849,14 +849,14 @@ const ClassGroupManagement: React.FC<ClassGroupManagementProps> = ({ schoolId })
                   return (
                     <button key={p.id} type="button"
                       onClick={() => setSelectedAssignIds(prev => { const s = new Set(prev); selected ? s.delete(String(p.id)) : s.add(String(p.id)); return s; })}
-                      className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all border ${selected ? (assignMode === 'teacher' ? 'bg-amber-50 border-amber-300 dark:bg-amber-500/10 dark:border-amber-500/40' : 'bg-emerald-50 border-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/40') : 'hover:bg-slate-50 dark:hover:bg-slate-800 border-transparent'}`}
+                      className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all border ${selected ? (assignMode === 'teacher' ? 'bg-amber-50 border-amber-300 dark:bg-amber-500/10 dark:border-amber-500/40' : 'bg-brand-50 border-brand-300 dark:bg-brand-500/10 dark:border-brand-500/40') : 'hover:bg-slate-50 dark:hover:bg-slate-800 border-transparent'}`}
                     >
                       <Avatar name={p.name} src={p.avatar} size={9} />
                       <div className="flex-1 text-left">
                         <p className="text-xs font-black text-slate-700 dark:text-white">{p.name}</p>
                         {p.email && <p className="text-[9px] text-slate-400 truncate">{p.email}</p>}
                       </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${selected ? (assignMode === 'teacher' ? 'bg-amber-500 border-amber-500' : 'bg-emerald-500 border-emerald-500') : 'border-slate-300 dark:border-slate-600'}`}>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${selected ? (assignMode === 'teacher' ? 'bg-amber-500 border-amber-500' : 'bg-brand-500 border-brand-500') : 'border-slate-300 dark:border-slate-600'}`}>
                         {selected && <i className="fas fa-check text-[8px] text-white"></i>}
                       </div>
                     </button>
@@ -864,7 +864,7 @@ const ClassGroupManagement: React.FC<ClassGroupManagementProps> = ({ schoolId })
                 })}
               </div>
               <button onClick={() => void handleAssign()} disabled={isAssigning || selectedAssignIds.size === 0}
-                className={`w-full py-3 text-white rounded-2xl text-sm font-black uppercase tracking-widest transition-all disabled:opacity-40 shadow-lg ${assignMode === 'teacher' ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/25' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/25'}`}>
+                className={`w-full py-3 text-white rounded-2xl text-sm font-black uppercase tracking-widest transition-all disabled:opacity-40 shadow-lg ${assignMode === 'teacher' ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/25' : 'bg-brand-500 hover:bg-brand-600 shadow-brand-500/25'}`}>
                 {isAssigning ? 'Assigning…' : `Assign ${selectedAssignIds.size || ''} ${assignMode}${selectedAssignIds.size !== 1 ? 's' : ''}`}
               </button>
             </div>
