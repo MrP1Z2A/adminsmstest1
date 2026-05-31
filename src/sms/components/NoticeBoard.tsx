@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabaseClient';
+import { sanitizeObject } from '../../shared/utils/sanitize';
 
 type NoticeItem = {
   id: string;
@@ -183,7 +184,7 @@ export default function NoticeBoard({ onOpenNotice, schoolId }: NoticeBoardProps
       fileName = selectedFile.name;
     }
 
-    const payload = {
+    const payload = sanitizeObject({
       title: title.trim(),
       message: message.trim(),
       notice_date: noticeDate,
@@ -191,7 +192,7 @@ export default function NoticeBoard({ onOpenNotice, schoolId }: NoticeBoardProps
       file_path: filePath,
       file_name: fileName,
       school_id: schoolId
-    };
+    });
 
     const { error: saveError } = await supabase
       .from('notice_board')

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../src/supabaseClient';
+import { sanitizeObject } from '../../shared/utils/sanitize';
 import { buildAdminMessagingId, getAdminMessagingName } from '../../shared/messaging/adminMessaging';
 import { buildParentMessagingUsers } from '../../shared/messaging/parentMessaging';
 
@@ -431,13 +432,13 @@ const ParentMessagingDesk: React.FC<ParentMessagingDeskProps> = ({ schoolId, sch
     if (!supabase || !selectedParent || !draftMessage.trim()) return;
 
     const trimmedMessage = draftMessage.trim();
-    const payload = {
+    const payload = sanitizeObject({
       sender_id: adminUserId,
       receiver_id: selectedParent.id,
       group_id: null,
       content: trimmedMessage,
       school_id: schoolId,
-    };
+    });
 
     const optimisticMessage: MessageRecord = {
       id: `opt-${Date.now()}`,

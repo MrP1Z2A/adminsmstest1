@@ -20,8 +20,12 @@ export async function fetchLiveKitToken(
     isTeacher: String(isTeacher),
   });
 
+  // Use environment variable for token server URL, fallback to local dev
+  const tokenServerUrl = import.meta.env.VITE_LIVEKIT_TOKEN_URL || '';
+  const url = `${tokenServerUrl}/api/get-livekit-token?${params.toString()}`;
+
   try {
-    const response = await fetch(`/api/get-livekit-token?${params.toString()}`);
+    const response = await fetch(url);
     
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));

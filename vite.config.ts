@@ -4,6 +4,12 @@ import path from 'path';
 import { AccessToken, TrackSource } from 'livekit-server-sdk';
 import url from 'url';
 
+// Simple in-memory rate limiting map
+// Maps IP addresses to an object containing the request count and the reset timestamp
+const rateLimit = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_MINUTE = 20; // Allow 20 requests per minute per IP
+
 export default defineConfig({
   plugins: [
     react(),
@@ -11,6 +17,32 @@ export default defineConfig({
       name: 'livekit-token-server',
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
+          // Apply rate limiting to all /api/ endpoints
+          if (req.url && req.url.startsWith('/api/')) {
+            const ip = req.socket?.remoteAddress || 'unknown-ip';
+            const now = Date.now();
+            const limit = rateLimit.get(ip);
+
+            if (limit) {
+              if (now > limit.resetTime) {
+                // Window expired, reset count
+                rateLimit.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+              } else {
+                if (limit.count >= MAX_REQUESTS_PER_MINUTE) {
+                  res.writeHead(429, { 
+                    'Content-Type': 'application/json',
+                    'Retry-After': Math.ceil((limit.resetTime - now) / 1000).toString()
+                  });
+                  res.end(JSON.stringify({ error: 'Too many requests, please try again later.' }));
+                  return; // Stop processing this request
+                }
+                limit.count++;
+              }
+            } else {
+              rateLimit.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+            }
+          }
+
           if (req.url && req.url.startsWith('/api/get-livekit-token')) {
             const parsedUrl = url.parse(req.url, true);
             const query = parsedUrl.query;
