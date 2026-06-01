@@ -80,6 +80,7 @@ const ClassAndCoursesManager: React.FC<ClassAndCoursesManagerProps> = ({
   assignedClassIds: propAssignedClassIds = [],
   assignedCourseIds: propAssignedCourseIds = []
 }) => {
+  const isTeacher = React.useMemo(() => userRole?.toLowerCase() === 'teacher', [userRole]);
   const [classes, setClasses] = React.useState<ClassRow[]>([]);
   const [filteredClasses, setFilteredClasses] = React.useState<ClassRow[]>([]);
   const [classSearchQuery, setClassSearchQuery] = React.useState('');
@@ -175,13 +176,22 @@ const ClassAndCoursesManager: React.FC<ClassAndCoursesManagerProps> = ({
   const loadClasses = React.useCallback(async () => {
     if (!supabase || !propSchoolId) return;
     
+    if (isTeacher) {
+      if (!propAssignedClassIds || propAssignedClassIds.length === 0) {
+        setClasses([]);
+        return;
+      }
+    }
+
     let query = supabase
       .schema('public')
       .from('classes')
       .select('*, class_course_students(student_id)')
       .eq('school_id', propSchoolId);
 
-    if (propAssignedClassIds && propAssignedClassIds.length > 0) {
+    if (isTeacher && propAssignedClassIds && propAssignedClassIds.length > 0) {
+      query = query.in('id', propAssignedClassIds);
+    } else if (propAssignedClassIds && propAssignedClassIds.length > 0) {
       query = query.in('id', propAssignedClassIds);
     }
 
@@ -200,7 +210,7 @@ const ClassAndCoursesManager: React.FC<ClassAndCoursesManagerProps> = ({
     }));
 
     setClasses(next);
-  }, [safeNotify, propSchoolId, propAssignedClassIds]);
+  }, [safeNotify, propSchoolId, propAssignedClassIds, isTeacher]);
 
   React.useEffect(() => {
     void loadClasses();
@@ -313,13 +323,23 @@ const ClassAndCoursesManager: React.FC<ClassAndCoursesManagerProps> = ({
     }
 
     const { schoolId } = await getCurrentTenantContext();
-    const { data, error } = await supabase
+    let query = supabase
       .schema('public')
       .from('class_courses')
       .select('*')
       .eq('class_id', classId)
-      .eq('school_id', schoolId)
-      .order('created_at', { ascending: false });
+      .eq('school_id', schoolId);
+
+    if (isTeacher) {
+      if (!propAssignedCourseIds || propAssignedCourseIds.length === 0) {
+        setClassCourses([]);
+        setIsClassCoursesLoading(false);
+        return;
+      }
+      query = query.in('id', propAssignedCourseIds);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     setIsClassCoursesLoading(false);
 
@@ -335,7 +355,7 @@ const ClassAndCoursesManager: React.FC<ClassAndCoursesManagerProps> = ({
       class_id: String(row.class_id),
       image_url: row.image_url || null,
     })));
-  }, [safeNotify]);
+  }, [safeNotify, isTeacher, propAssignedCourseIds]);
 
   React.useEffect(() => {
     if (!selectedClassId) {
@@ -767,7 +787,7 @@ const ClassAndCoursesManager: React.FC<ClassAndCoursesManagerProps> = ({
           <h2 className="text-5xl font-black text-slate-900 uppercase tracking-tight leading-none">Campus Formations</h2>
           <p className="text-[#4ea59d]/60 font-black text-[10px] uppercase tracking-[0.4em]">Integrated Class & Curriculum Control</p>
         </div>
-        {userRole === 'teacher' && (
+        {isTeacher && (
           <button
             onClick={() => { setEditingClassId(null); setClassName(''); setIsClassFormOpen(true); }}
             className="group relative px-10 py-5 rounded-[24px] bg-[#4ea59d] text-slate-900 font-black text-[12px] uppercase tracking-[0.2em] shadow-2xl shadow-[#4ea59d]/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
@@ -903,7 +923,7 @@ const ClassAndCoursesManager: React.FC<ClassAndCoursesManagerProps> = ({
                 className={`group relative rounded-[32px] border transition-all cursor-pointer overflow-hidden ${isActive ? 'border-[#4ea59d] bg-[#4ea59d]/10' : 'border-white/10 bg-white/5 hover:border-[#4ea59d]/50 shadow-none hover:shadow-2xl hover:shadow-[#000]/20'}`}
               >
                 {/* ACTIONS OVERLAY */}
-                {userRole === 'teacher' && (
+                {isTeacher && (
                   <div className="absolute top-4 right-4 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100">
                     <button
                       onClick={(e) => { e.stopPropagation(); startEditClass(classItem); }}
@@ -955,7 +975,7 @@ const ClassAndCoursesManager: React.FC<ClassAndCoursesManagerProps> = ({
                 <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Academic Curricula</h3>
                 <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.3em] mt-1">Managed Courses for {selectedClass.name}</p>
              </div>
-             {userRole === 'teacher' && (
+             {isTeacher && (
                <button
                   onClick={() => setIsCreateCourseModalOpen(true)}
                   className="w-12 h-12 rounded-2xl bg-[#4ea59d] text-slate-900 shadow-lg shadow-[#4ea59d]/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
@@ -981,7 +1001,7 @@ const ClassAndCoursesManager: React.FC<ClassAndCoursesManagerProps> = ({
                 key={course.id}
                 className="group bg-white rounded-[32px] overflow-hidden border border-slate-100 hover:border-[#4ea59d]/40 transition-all hover:-translate-y-2 relative shadow- premium text-slate-800"
               >
-                {userRole === 'teacher' && (
+                {isTeacher && (
                   <div className="absolute top-8 right-8 z-10 flex gap-4 opacity-0 group-hover:opacity-100 transition-all">
                     <button onClick={() => openEditCourseModal(course)} className="w-10 h-10 rounded-xl bg-white/90 backdrop-blur-md text-slate-600 border border-slate-200 hover:bg-[#4ea59d] hover:text-white flex items-center justify-center transition-all shadow-lg">
                        <i className="fas fa-pen text-[12px]"></i>
