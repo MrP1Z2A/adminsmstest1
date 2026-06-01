@@ -1425,7 +1425,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
               )}
 
               <div className="grid grid-cols-1 xl:grid-cols-[360px,minmax(0,1fr)] gap-5">
-                <form onSubmit={submitCashOutRecord} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[36px] p-5 sm:p-6 shadow-premium space-y-5 max-h-[70vh] xl:max-h-[80vh] overflow-y-auto">
+                <form onSubmit={submitCashOutRecord} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[36px] p-5 sm:p-6 shadow-premium space-y-5 max-h-[70vh] xl:max-h-[80vh] overflow-y-auto no-scrollbar">
                   <div className="space-y-2">
                     <p className="text-[11px] font-black uppercase tracking-widest text-rose-500">Money Out Only</p>
                     <h3 className="text-2xl font-black tracking-tight">Add Cash Out Record</h3>
@@ -1506,8 +1506,9 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
                     <p className="text-sm font-semibold text-slate-500">No cash records found.</p>
                   ) : (
                     <div className="space-y-3">
-                      {cashLedgerEntries.map(entry => (
-                        <div key={entry.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                      <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                          {cashLedgerEntries.map(entry => (
+                            <div key={entry.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                           <div className="space-y-2 min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
@@ -1530,6 +1531,7 @@ const PaymentFinanceHub: React.FC<PaymentFinanceHubProps> = ({ view, schoolId })
                           </div>
                         </div>
                       ))}
+                      </div>
                     </div>
                   )}
                 </div>
