@@ -27,10 +27,19 @@ export default async function handler(req, res) {
   // Load from Vercel environment variables, fallback to your LiveKit Cloud keys
   const API_KEY = process.env.LIVEKIT_API_KEY || 'APIhuKo3YqiNuKu';
   const API_SECRET = process.env.LIVEKIT_API_SECRET || 'lJfbOjfOKFzLkiyzxdAZ9CnpSCWbuiPk5GyPhO0PcKd';
+  
+  // Dynamically convert wss:// to https:// for RoomServiceClient connection
+  let livekitUrl = process.env.LIVEKIT_URL || 'https://iemsms-wynofg38.livekit.cloud';
+  if (livekitUrl.startsWith('wss://')) {
+    livekitUrl = livekitUrl.replace('wss://', 'https://');
+  } else if (livekitUrl.startsWith('ws://')) {
+    livekitUrl = livekitUrl.replace('ws://', 'http://');
+  }
 
   try {
     // Connect to LiveKit Cloud to list active rooms
-    const roomService = new RoomServiceClient('https://iemsms-wynofg38.livekit.cloud', API_KEY, API_SECRET);
+    const roomService = new RoomServiceClient(livekitUrl, API_KEY, API_SECRET);
+
     
     // SECURITY: Students cannot join until Teacher starts the room
     if (isTeacher !== 'true') {
